@@ -52,4 +52,4 @@ export default async (req) => {
   }
 };
 
-export const config = { path: '/api/projects/*' };
+export const config = { path: ['/api/projects', '/api/projects/*'] };

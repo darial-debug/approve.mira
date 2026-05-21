@@ -25,4 +25,4 @@ export default async (req) => {
   }
 };
 
-export const config = { path: '/api/task-drafts/*' };
+export const config = { path: ['/api/task-drafts', '/api/task-drafts/*'] };
