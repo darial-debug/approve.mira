@@ -17,7 +17,8 @@ export default async (req) => {
     const source = body.source || 'web';
 
     const allUsers = await readData('users', []);
-    const result = await draftApproval({ messages, images, requester: me, allUsers, source });
+    const allProjects = await readData('projects', []);
+    const result = await draftApproval({ messages, images, requester: me, allUsers, allProjects, source });
     return json(200, result);
   } catch (e) {
     if (e instanceof Response) return e;

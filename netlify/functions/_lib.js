@@ -8,10 +8,21 @@ const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_RAW);
 export const ROLES = ['employee', 'manager', 'dept_head', 'c_level', 'admin'];
 export const CATEGORIES = ['payments', 'content', 'other'];
 export const CURRENCIES = ['AED', 'USD', 'EUR', 'GBP'];
-export const TASK_STATUS = ['under_review', 'declined', 'approved'];
+export const PAYMENT_TYPES = ['payment', 'refund', 'postpayment'];
+export const TASK_STATUS = ['under_review', 'declined', 'approved', 'awaiting_transfer', 'transferred'];
 
 // Roles allowed to edit the approval path on an in-flight task.
 export const PATH_EDITORS = new Set(['dept_head', 'c_level', 'admin']);
+
+// Whether a user can act as Finance (upload proof of transfer + mark transferred).
+// Anyone in a department named "Finance" qualifies; admin always qualifies.
+export async function isFinanceMember(user, departments) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  if (!user.departmentId) return false;
+  const dept = (departments || []).find((d) => d.id === user.departmentId);
+  return !!dept && /finance/i.test(dept.name);
+}
 
 export function json(status, body, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {

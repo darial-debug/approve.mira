@@ -1,6 +1,6 @@
 import {
   json, requireAuth, readData, writeData, newId, appendAudit,
-  CATEGORIES, CURRENCIES, PATH_EDITORS,
+  CATEGORIES, CURRENCIES, PAYMENT_TYPES, PATH_EDITORS, isFinanceMember,
 } from './_lib.js';
 import { notifyUser } from './_notify.js';
 
@@ -8,6 +8,11 @@ import { notifyUser } from './_notify.js';
 
 function normalizeFields(category, fields = {}) {
   const f = { ...fields };
+  // Project lives on every category. It's either a project ID from the
+  // managed list, or a free-form string (for "Other" choice in dropdown).
+  if (f.projectId != null) f.projectId = String(f.projectId);
+  if (f.projectName) f.projectName = String(f.projectName).trim();
+
   if (category === 'payments') {
     f.amount = f.amount != null ? Number(f.amount) : null;
     if (f.amount != null && !Number.isFinite(f.amount)) {
@@ -16,6 +21,10 @@ function normalizeFields(category, fields = {}) {
     if (f.currency && !CURRENCIES.includes(f.currency)) {
       throw json(400, { error: `Currency must be one of ${CURRENCIES.join(', ')}` });
     }
+    if (f.paymentType && !PAYMENT_TYPES.includes(f.paymentType)) {
+      throw json(400, { error: `paymentType must be one of ${PAYMENT_TYPES.join(', ')}` });
+    }
+    if (!f.paymentType) f.paymentType = 'payment'; // default
   }
   return f;
 }
@@ -214,7 +223,9 @@ export default async (req) => {
         step.comment = comment || null;
         const nextIdx = currentStepIndex(t);
         if (nextIdx === -1) {
-          t.status = 'approved';
+          // All approvers approved. Payments wait for Finance to upload proof of transfer;
+          // content/other are done at this point.
+          t.status = t.category === 'payments' ? 'awaiting_transfer' : 'approved';
         }
         await appendAudit(t.id, { action: 'approved_step', userId: me.id, meta: { stepNumber: step.stepNumber, comment } });
       } else if (action === 'decline') {
@@ -251,6 +262,7 @@ export default async (req) => {
 
       // Notify submitter + next approver as appropriate.
       const users = await readData('users', []);
+      const departments = await readData('departments', []);
       const submitter = users.find((u) => u.id === t.submitterId);
 
       if (t.status === 'approved') {
@@ -260,6 +272,24 @@ export default async (req) => {
           title: `Approved — ${t.title}`,
           body: `Your request was approved by all ${t.steps.length} approver(s).`,
         });
+      } else if (t.status === 'awaiting_transfer') {
+        // Notify submitter that the chain approved, AND ping every Finance dept member.
+        await notifyUser(submitter, {
+          kind: 'decision',
+          taskId: t.id,
+          title: `Approved — awaiting transfer — ${t.title}`,
+          body: `All approvers approved. Finance will now process the transfer.`,
+        });
+        const financeMembers = [];
+        for (const u of users) {
+          if (await isFinanceMember(u, departments)) financeMembers.push(u);
+        }
+        await Promise.all(financeMembers.map((u) => notifyUser(u, {
+          kind: 'awaiting_transfer',
+          taskId: t.id,
+          title: `Transfer needed — ${t.title}`,
+          body: `${submitter?.name || 'A user'} got their payment approved. Please process the transfer and upload proof.${t.fields?.amount ? `\nAmount: ${t.fields.amount} ${t.fields.currency || ''}` : ''}`,
+        })));
       } else if (t.status === 'declined') {
         await notifyUser(submitter, {
           kind: 'decision',
@@ -279,6 +309,55 @@ export default async (req) => {
           });
         }
       }
+      return json(200, { task: t });
+    }
+
+    if (req.method === 'POST' && id && sub === 'transfer') {
+      // Finance-only: mark a payment as transferred after upload of proof-of-transfer.
+      const body = await req.json().catch(() => ({}));
+      const proofAttachmentId = body.proofAttachmentId; // optional — attachment already uploaded
+      const comment = (body.comment || '').trim();
+
+      const tasks = await readData('tasks', []);
+      const t = tasks.find((x) => x.id === id);
+      if (!t) return json(404, { error: 'Task not found' });
+      if (t.category !== 'payments') return json(409, { error: 'Only payment tasks need a transfer step.' });
+      if (t.status !== 'awaiting_transfer') return json(409, { error: 'Task is not awaiting transfer.' });
+
+      const departments = await readData('departments', []);
+      const isFinance = await isFinanceMember(me, departments);
+      if (!isFinance) return json(403, { error: 'Only Finance department members can mark transfers.' });
+
+      // Require proof of transfer to be attached before closing.
+      const proofRef = proofAttachmentId
+        ? (t.attachments || []).find((a) => a.id === proofAttachmentId)
+        : null;
+      if (proofAttachmentId && !proofRef) {
+        return json(400, { error: 'Proof attachment not found on this task.' });
+      }
+      // Soft-require: if no specific proof is referenced, ensure at least one attachment exists.
+      if (!proofAttachmentId && !(t.attachments || []).length) {
+        return json(400, { error: 'Upload the proof of transfer before marking as transferred.' });
+      }
+
+      const now = new Date().toISOString();
+      t.status = 'transferred';
+      t.transferredAt = now;
+      t.transferredBy = me.id;
+      t.proofOfTransferId = proofAttachmentId || (t.attachments[t.attachments.length - 1]?.id || null);
+      t.transferComment = comment || null;
+      t.updatedAt = now;
+      await writeData('tasks', tasks);
+      await appendAudit(t.id, { action: 'transferred', userId: me.id, meta: { comment, proofId: t.proofOfTransferId } });
+
+      const users = await readData('users', []);
+      const submitter = users.find((u) => u.id === t.submitterId);
+      await notifyUser(submitter, {
+        kind: 'transferred',
+        taskId: t.id,
+        title: `Transferred — ${t.title}`,
+        body: `${me.name} marked your payment as transferred.${comment ? `\nNote: ${comment}` : ''}`,
+      });
       return json(200, { task: t });
     }
 

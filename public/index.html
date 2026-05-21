@@ -281,6 +281,7 @@
     user: null,
     users: [],
     departments: [],
+    projects: [],
     tasks: [],
     drafts: [],
     inbox: [],
@@ -381,6 +382,8 @@
   function statusChip(t) {
     if (t.status === 'approved') return `<span class="chip chip-green">Approved</span>`;
     if (t.status === 'declined') return `<span class="chip chip-red">Declined</span>`;
+    if (t.status === 'awaiting_transfer') return `<span class="chip chip-yellow" style="background: var(--warn); color: #1a1a1a;">Awaiting transfer</span>`;
+    if (t.status === 'transferred') return `<span class="chip chip-green">Transferred ✓</span>`;
     return `<span class="chip chip-yellow">Under review</span>`;
   }
 
@@ -403,20 +406,37 @@
   }
 
   async function refreshAll() {
-    const [tasks, users, departments, drafts] = await Promise.all([
+    const [tasks, users, departments, projects, drafts] = await Promise.all([
       api('/api/tasks?scope=' + (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'mine' : state.scope)).catch(() => ({ tasks: [] })),
       api('/api/users').catch(() => ({ users: [] })),
       api('/api/departments').catch(() => ({ departments: [] })),
+      api('/api/projects').catch(() => ({ projects: [] })),
       api('/api/task-drafts').catch(() => ({ drafts: [] })),
     ]);
     state.tasks = tasks.tasks || [];
     state.users = users.users || [];
     state.departments = departments.departments || [];
+    state.projects = projects.projects || [];
     state.drafts = drafts.drafts || [];
     if (state.user?.role === 'admin' || state.user?.role === 'c_level') {
       api('/api/analytics').then((a) => { state.analytics = a; render(); }).catch(() => {});
     }
   }
+
+  // Helpers for project & finance
+  function projectLabel(t) {
+    const f = t.fields || {};
+    if (f.projectId) return state.projects.find((p) => p.id === f.projectId)?.name || f.projectName || '—';
+    return f.projectName || '';
+  }
+  function isFinanceMember() {
+    if (!state.user) return false;
+    if (state.user.role === 'admin') return true;
+    if (!state.user.departmentId) return false;
+    const dept = state.departments.find((d) => d.id === state.user.departmentId);
+    return !!dept && /finance/i.test(dept.name);
+  }
+  const paymentTypeLabel = (t) => ({ payment: 'Payment', refund: 'Refund', postpayment: 'Postpayment' }[t] || t);
 
   // ─── Render top-level ───
   function render() {
@@ -572,16 +592,20 @@
   function renderTaskCard(t) {
     const submitter = userName(t.submitterId);
     const step = t.steps.find((s) => s.status === 'pending');
-    const stepInfo = step ? `Step ${step.stepNumber}/${t.steps.length} · ${userName(step.approverId)}` : `${t.steps.length} step${t.steps.length>1?'s':''}`;
+    const stepInfo = t.status === 'awaiting_transfer' ? 'Awaiting Finance' : t.status === 'transferred' ? 'Transferred' : step ? `Step ${step.stepNumber}/${t.steps.length} · ${userName(step.approverId)}` : `${t.steps.length} step${t.steps.length>1?'s':''}`;
     const amount = t.category === 'payments' && t.fields?.amount ? `<span class="chip chip-dim">${t.fields.amount} ${esc(t.fields.currency || '')}</span>` : '';
+    const pType = t.category === 'payments' && t.fields?.paymentType && t.fields.paymentType !== 'payment' ? `<span class="chip chip-dim">${paymentTypeLabel(t.fields.paymentType)}</span>` : '';
+    const proj = projectLabel(t);
     return `
       <div class="card card-hover" style="cursor:pointer" onclick="location.hash='#/task/${t.id}'">
         <div class="card-row">
           <div style="flex:1; min-width:0;">
             <div class="card-row" style="gap:10px; margin-bottom: 6px; flex-wrap: wrap;">
               <span class="chip chip-dim">${categoryLabel(t.category)}</span>
+              ${pType}
               ${statusChip(t)}
               ${amount}
+              ${proj ? `<span class="chip chip-dim">📁 ${esc(proj)}</span>` : ''}
               ${t.source === 'slack' ? '<span class="chip chip-dim">Slack</span>' : ''}
             </div>
             <div class="card-title">${esc(t.title)}</div>
@@ -630,6 +654,8 @@
 
         ${isMyStep ? renderActionPanel(t, currentStep) : ''}
         ${t.status === 'declined' && isSubmitter ? `<div class="card"><b>This task was declined.</b> You can edit it and resubmit.<div style="margin-top:10px;"><button class="btn btn-primary" id="resubmitBtn">Resubmit</button></div></div>` : ''}
+        ${t.status === 'awaiting_transfer' && isFinanceMember() ? renderTransferPanel(t) : ''}
+        ${t.status === 'awaiting_transfer' && !isFinanceMember() ? `<div class="card"><b>Awaiting transfer.</b> All approvers approved this payment. Finance will process the transfer and upload proof of payment to close it.</div>` : ''}
 
         <div class="grid grid-2" style="gap:18px;">
           <div class="card">
@@ -690,6 +716,24 @@
       </div>`;
   }
 
+  function renderTransferPanel(t) {
+    const attachs = t.attachments || [];
+    return `
+      <div class="card card-dark">
+        <h3 style="margin-top:0;color:#d9f03a;">Finance — Process transfer</h3>
+        <div style="margin-bottom: 14px; font-size: 14px;">All ${t.steps.length} approver(s) approved this ${esc(paymentTypeLabel(t.fields?.paymentType || 'payment'))}${t.fields?.amount ? ` for ${t.fields.amount} ${esc(t.fields.currency || '')}` : ''}. Upload the proof of transfer, then mark as transferred.</div>
+        <input type="file" id="transferFileInput" style="display:none;" />
+        <button class="btn" id="uploadTransferBtn" style="background: #ffffff; color: #16181b;">+ Upload proof of transfer</button>
+        ${attachs.length ? `<div style="margin-top: 12px;">Attached files: ${attachs.map((a) => esc(a.name)).join(', ')}</div>` : ''}
+        <div class="field" style="margin-top: 14px;">
+          <label style="color:#d9f03a">Note (optional)</label>
+          <textarea class="textarea" id="transferComment" placeholder="e.g. Wire transfer reference #..." style="background:#22252a;border-color:#3a3f47;color:#ecebe4"></textarea>
+        </div>
+        <button class="btn btn-primary" id="markTransferredBtn" ${!attachs.length ? 'disabled' : ''}>Mark as transferred</button>
+        ${!attachs.length ? `<div class="card-meta" style="margin-top:8px;color:#9aa0a6;">Upload at least one proof file before marking.</div>` : ''}
+      </div>`;
+  }
+
   function renderActionPanel(t, step) {
     const completed = t.steps.filter((s) => s.status === 'approved');
     return `
@@ -719,7 +763,10 @@
   function renderTaskFields(t) {
     const f = t.fields || {};
     const rows = [];
+    const projDisplay = projectLabel(t);
+    if (projDisplay) rows.push(['Project', esc(projDisplay)]);
     if (t.category === 'payments') {
+      rows.push(['Payment type', `<span class="chip chip-dim">${paymentTypeLabel(f.paymentType || 'payment')}</span>`]);
       rows.push(['Amount', f.amount ? `${f.amount} ${esc(f.currency || '')}` : '—']);
       rows.push(['Vendor', esc(f.vendor || '—')]);
       rows.push(['Purpose', esc(f.purpose || '—')]);
@@ -729,6 +776,10 @@
     }
     rows.push(['Description', f.description ? `<div style="white-space: pre-wrap">${esc(f.description)}</div>` : '—']);
     if (t.slackMessage) rows.push(['Source', `Slack message from ${esc(t.slackMessage.channelName || t.slackMessage.channelId || 'DM')}`]);
+    if (t.status === 'transferred') {
+      rows.push(['Transferred by', `${esc(userName(t.transferredBy))} · ${fmtDate(t.transferredAt)}`]);
+      if (t.transferComment) rows.push(['Transfer note', esc(t.transferComment)]);
+    }
     return `<div class="kv">${rows.map(([k,v]) => `<div class="k">${k}</div><div>${v}</div>`).join('')}</div>`;
   }
 
@@ -911,8 +962,32 @@
       </div>`;
   }
 
+  function projectFieldHTML(selectedId, selectedName) {
+    const opts = state.projects.map((p) => `<option value="${p.id}" ${selectedId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    const isOther = !selectedId && selectedName;
+    return `
+      <div class="field">
+        <label>Project (on whose behalf)</label>
+        <select class="select" id="fProjectId">
+          <option value="">— pick a project —</option>
+          ${opts}
+          <option value="__other" ${isOther ? 'selected' : ''}>+ Other (type below)</option>
+        </select>
+        <input class="input" id="fProjectName" placeholder="Custom project name…" style="margin-top: 8px; display: ${isOther ? 'block' : 'none'};" value="${esc(selectedName || '')}" />
+      </div>`;
+  }
+
   function renderCategoryFields(category) {
     if (category === 'payments') return `
+      <div class="field">
+        <label>Payment type</label>
+        <select class="select" id="fPaymentType">
+          <option value="payment">Payment (regular)</option>
+          <option value="refund">Refund</option>
+          <option value="postpayment">Postpayment</option>
+        </select>
+        <div class="help" id="paymentTypeHelp" style="margin-top: 4px;"></div>
+      </div>
       <div class="grid grid-2">
         <div class="field"><label>Amount</label><input class="input" id="fAmount" type="number" step="0.01" /></div>
         <div class="field"><label>Currency</label><select class="select" id="fCurrency">
@@ -921,14 +996,56 @@
       </div>
       <div class="field"><label>Vendor / Recipient</label><input class="input" id="fVendor" /></div>
       <div class="field"><label>Purpose</label><input class="input" id="fPurpose" /></div>
+      ${projectFieldHTML('', '')}
       <div class="field"><label>Due date (optional)</label><input class="input" id="fDueDate" type="date" /></div>`;
-    if (category === 'content') return `<div class="field"><label>Link (URL)</label><input class="input" id="fLink" /></div>`;
-    return '';
+    if (category === 'content') return `
+      <div class="field"><label>Link (URL)</label><input class="input" id="fLink" /></div>
+      ${projectFieldHTML('', '')}`;
+    return projectFieldHTML('', '');
+  }
+
+  function bindProjectField() {
+    const sel = document.getElementById('fProjectId');
+    const customInput = document.getElementById('fProjectName');
+    if (!sel) return;
+    sel.onchange = () => {
+      if (sel.value === '__other') {
+        customInput.style.display = 'block';
+        customInput.focus();
+      } else {
+        customInput.style.display = 'none';
+        customInput.value = '';
+      }
+    };
+  }
+
+  function bindPaymentTypeField() {
+    const sel = document.getElementById('fPaymentType');
+    const help = document.getElementById('paymentTypeHelp');
+    if (!sel || !help) return;
+    const repaint = () => {
+      if (sel.value === 'refund') help.innerHTML = `<span style="color: var(--warn);">⚠ Refunds require both the original invoice <b>and</b> proof of the original payment (POP) attached.</span>`;
+      else if (sel.value === 'postpayment') help.innerHTML = `Postpayment — the work/service was already delivered. Attach the invoice.`;
+      else help.innerHTML = `Regular payment — attach the invoice.`;
+    };
+    sel.onchange = repaint;
+    repaint();
   }
 
   function gatherCategoryFields(category) {
+    const projSel = document.getElementById('fProjectId');
+    const projName = document.getElementById('fProjectName');
+    let projectId = null, projectName = '';
+    if (projSel) {
+      if (projSel.value === '__other') projectName = projName.value.trim();
+      else if (projSel.value) projectId = projSel.value;
+    }
+    const common = { projectId, projectName };
+
     if (category === 'payments') {
       return {
+        ...common,
+        paymentType: document.getElementById('fPaymentType').value,
         amount: document.getElementById('fAmount').value || null,
         currency: document.getElementById('fCurrency').value,
         vendor: document.getElementById('fVendor').value.trim(),
@@ -937,9 +1054,9 @@
       };
     }
     if (category === 'content') {
-      return { link: document.getElementById('fLink').value.trim() };
+      return { ...common, link: document.getElementById('fLink').value.trim() };
     }
-    return {};
+    return common;
   }
 
   // ─── Drawer (profile) ───
@@ -1056,8 +1173,19 @@
             <button class="btn btn-primary" id="newDeptBtn">+ Add department</button>
           </div>
           ${state.departments.length ? `<table class="table"><thead><tr><th>Name</th><th>Head</th><th></th></tr></thead><tbody>
-            ${state.departments.map((d) => `<tr><td>${esc(d.name)}</td><td>${esc(userName(d.headUserId))}</td><td class="row-actions"><button class="btn btn-danger" data-del-dept="${d.id}">Delete</button></td></tr>`).join('')}
-          </tbody></table>` : '<div class="card-meta">No departments yet.</div>'}
+            ${state.departments.map((d) => `<tr><td>${esc(d.name)}${/finance/i.test(d.name) ? ' <span class="chip chip-yellow" style="margin-left: 8px;">Finance</span>' : ''}</td><td>${esc(userName(d.headUserId))}</td><td class="row-actions"><button class="btn btn-danger" data-del-dept="${d.id}">Delete</button></td></tr>`).join('')}
+          </tbody></table>` : '<div class="card-meta">No departments yet. <b>Tip:</b> create one named "Finance" — its members will be able to process post-approval transfers on payments.</div>'}
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3 style="margin:0">Projects (${state.projects.length})</h3>
+            <button class="btn btn-primary" id="newProjectBtn">+ Add project</button>
+          </div>
+          <p class="card-meta" style="margin-top: -10px; margin-bottom: 14px;">Used as the "on behalf of" field on every approval request (e.g. Mira Dev, BHQ).</p>
+          ${state.projects.length ? `<table class="table"><thead><tr><th>Name</th><th></th></tr></thead><tbody>
+            ${state.projects.map((p) => `<tr><td>${esc(p.name)}</td><td class="row-actions"><button class="btn btn-danger" data-del-project="${p.id}">Delete</button></td></tr>`).join('')}
+          </tbody></table>` : '<div class="card-meta">No projects yet.</div>'}
         </div>
       </div>`;
   }
@@ -1358,15 +1486,29 @@
       fieldsEl.innerHTML = renderCategoryFields(catEl.value);
       // Pre-fill from AI proposal
       const f = _ai.proposed?.fields || {};
+      // Project field (all categories)
+      const projSel = document.getElementById('fProjectId');
+      const projName = document.getElementById('fProjectName');
+      if (projSel) {
+        if (f.projectId) projSel.value = f.projectId;
+        else if (f.projectName) {
+          projSel.value = '__other';
+          projName.style.display = 'block';
+          projName.value = f.projectName;
+        }
+      }
       if (catEl.value === 'payments') {
+        if (f.paymentType) document.getElementById('fPaymentType').value = f.paymentType;
         if (f.amount != null) document.getElementById('fAmount').value = f.amount;
         if (f.currency) document.getElementById('fCurrency').value = f.currency;
         if (f.vendor) document.getElementById('fVendor').value = f.vendor;
         if (f.purpose) document.getElementById('fPurpose').value = f.purpose;
         if (f.dueDate) document.getElementById('fDueDate').value = f.dueDate;
+        bindPaymentTypeField();
       } else if (catEl.value === 'content') {
         if (f.link) document.getElementById('fLink').value = f.link;
       }
+      bindProjectField();
     }
     repaintFields();
     catEl.onchange = repaintFields;
@@ -1499,6 +1641,28 @@
       } catch (e) { alert(e.message); }
     };
 
+    // Finance transfer panel
+    const transferUp = document.getElementById('uploadTransferBtn');
+    const transferIn = document.getElementById('transferFileInput');
+    if (transferUp) transferUp.onclick = () => transferIn.click();
+    if (transferIn) transferIn.onchange = async () => {
+      if (!transferIn.files.length) return;
+      try {
+        await uploadFiles(transferIn.files, id);
+        await loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+    const markTransferred = document.getElementById('markTransferredBtn');
+    if (markTransferred) markTransferred.onclick = async () => {
+      const comment = document.getElementById('transferComment')?.value.trim();
+      try {
+        const r = await api('/api/tasks/' + id + '/transfer', { method: 'POST', body: { comment } });
+        _taskCache[id] = { task: r.task, audit: [] };
+        await refreshAll();
+        loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+
     // Path editor save
     const savePath = document.getElementById('savePath');
     if (savePath) {
@@ -1546,6 +1710,23 @@
       b.onclick = async () => {
         if (!confirm('Delete department?')) return;
         await api('/api/departments/' + b.dataset.delDept, { method: 'DELETE' });
+        await refreshAll();
+        render();
+      };
+    });
+    const newProj = document.getElementById('newProjectBtn');
+    if (newProj) newProj.onclick = async () => {
+      const name = prompt('Project name (e.g. Mira Dev, BHQ)?'); if (!name) return;
+      try {
+        await api('/api/projects', { method: 'POST', body: { name } });
+        await refreshAll();
+        render();
+      } catch (e) { alert(e.message); }
+    };
+    document.querySelectorAll('[data-del-project]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Delete project?')) return;
+        await api('/api/projects/' + b.dataset.delProject, { method: 'DELETE' });
         await refreshAll();
         render();
       };
