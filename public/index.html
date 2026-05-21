@@ -303,10 +303,27 @@
   }
   window.addEventListener('hashchange', () => {
     state.route = parseRoute();
-    state.modalOpen = null;
-    if (state.route.path.startsWith('/new')) state.modalOpen = 'new';
-    render();
+    if (state.route.path.startsWith('/new')) {
+      openNewFromRoute();
+    } else {
+      state.modalOpen = null;
+      render();
+    }
   });
+
+  function openNewFromRoute() {
+    const draftId = state.route.query.draft;
+    resetAI();
+    if (draftId) {
+      const draft = (state.drafts || []).find((d) => d.id === draftId);
+      if (draft) {
+        _ai.sourceDraft = draft;
+        _ai.draftId = draft.id;
+      }
+    }
+    state.modalOpen = 'new';
+    render();
+  }
 
   function nav(to) {
     window.location.hash = to;
@@ -377,6 +394,8 @@
       state.unread = me.unread;
       state.inbox = me.inbox || [];
       await refreshAll();
+      // If the URL came in pointing at /new (e.g. from a Slack draft link), open it now that drafts are loaded.
+      if (state.route.path.startsWith('/new')) openNewFromRoute();
     } catch {
       localStorage.removeItem(TOKEN_KEY);
     }
@@ -384,14 +403,16 @@
   }
 
   async function refreshAll() {
-    const [tasks, users, departments] = await Promise.all([
+    const [tasks, users, departments, drafts] = await Promise.all([
       api('/api/tasks?scope=' + (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'mine' : state.scope)).catch(() => ({ tasks: [] })),
       api('/api/users').catch(() => ({ users: [] })),
       api('/api/departments').catch(() => ({ departments: [] })),
+      api('/api/task-drafts').catch(() => ({ drafts: [] })),
     ]);
     state.tasks = tasks.tasks || [];
     state.users = users.users || [];
     state.departments = departments.departments || [];
+    state.drafts = drafts.drafts || [];
     if (state.user?.role === 'admin' || state.user?.role === 'c_level') {
       api('/api/analytics').then((a) => { state.analytics = a; render(); }).catch(() => {});
     }
@@ -501,15 +522,52 @@
     return renderHome();
   }
 
-  // ─── Home: task list ───
+  // ─── Home: drafts panel + task list ───
   function renderHome() {
     const filteredTasks = state.tasks.filter((t) => state.category === 'all' || t.category === state.category);
-    if (!filteredTasks.length) {
-      return `<div class="empty"><h3>Nothing here yet</h3><p>${state.scope === 'pending' ? 'No approvals waiting on you. ' : ''}Click + to create a new approval request, or send a message from Slack with the "Send to approve.mira" shortcut.</p></div>`;
+    const drafts = state.drafts || [];
+
+    let html = '';
+
+    // Top: create CTA + drafts panel (only when no category filter and on default scope)
+    if (state.category === 'all') {
+      html += `
+        <div class="card card-dark" style="margin-bottom: 16px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap;">
+          <div>
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Create a new approval</div>
+            <div style="color: #9aa0a6; font-size: 13px;">Describe it in your own words, dictate, or attach files. AI will draft it.</div>
+          </div>
+          <button class="btn btn-primary" id="newApprovalBtn" style="padding: 12px 22px;">+ New approval</button>
+        </div>`;
+
+      if (drafts.length) {
+        html += `
+          <div class="card" style="margin-bottom: 16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+              <h3 style="margin:0;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Drafts waiting to finish (${drafts.length})</h3>
+            </div>
+            <div class="grid" style="gap: 8px;">
+              ${drafts.map((d) => `
+                <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
+                    <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}${d.slackMessage ? 'Slack' : 'Direct'} · ${fmtAgo(d.createdAt)}</div>
+                  </div>
+                  <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish →</button>
+                  <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>`;
+      }
     }
-    return `<div class="grid" style="gap: 12px;">
-      ${filteredTasks.map((t) => renderTaskCard(t)).join('')}
-    </div>`;
+
+    if (!filteredTasks.length) {
+      html += `<div class="empty"><h3>Nothing here yet</h3><p>${state.scope === 'pending' ? 'No approvals waiting on you. ' : ''}${state.category !== 'all' ? `No ${categoryLabel(state.category)} tasks. ` : ''}Click + to create one or send a message from Slack.</p></div>`;
+      return html;
+    }
+    html += `<div class="grid" style="gap: 12px;">${filteredTasks.map((t) => renderTaskCard(t)).join('')}</div>`;
+    return html;
   }
   function renderTaskCard(t) {
     const submitter = userName(t.submitterId);
@@ -720,52 +778,134 @@
     </div>`;
   }
 
-  // ─── New task modal ───
+  // ─── AI-powered new approval modal ───
+  // Phases:
+  //   "describe"  — initial input (text + voice + files), AI hasn't run yet
+  //   "thinking"  — waiting on AI response
+  //   "ask"       — AI asked a clarifying question, user types reply
+  //   "review"    — AI proposed; user reviews/edits and picks the approval path
+  let _ai = {
+    phase: 'describe',     // describe | thinking | ask | review
+    messages: [],          // conversation with AI
+    images: [],            // {base64, mediaType} for images sent to AI
+    files: [],             // File objects to upload after task creation
+    proposed: null,        // { title, category, fields, suggestedApproverIds[] }
+    question: null,        // current AI question (during 'ask')
+    error: null,
+    draftId: null,
+    sourceDraft: null,     // the original draft if this came from Slack/TG
+    recording: false,
+  };
+  function resetAI() {
+    _ai = { phase: 'describe', messages: [], images: [], files: [], proposed: null, question: null, error: null, draftId: null, sourceDraft: null, recording: false };
+  }
+
   function renderNewTaskModal() {
-    const draftId = state.route.query.draft;
-    const draft = state.drafts.find((d) => d.id === draftId);
+    if (_ai.phase === 'describe' || _ai.phase === 'thinking' || _ai.phase === 'ask') {
+      return renderAIConversationModal();
+    }
+    return renderAIReviewModal();
+  }
+
+  function renderAIConversationModal() {
+    const isFirst = !_ai.messages.length;
+    const lastUserMsgs = _ai.messages.filter((m) => m.role === 'user').map((m) => typeof m.content === 'string' ? m.content : (m.content.find((b) => b.type === 'text')?.text || ''));
+    return `
+      <div class="scrim">
+        <div class="modal" style="max-width: 640px;">
+          <div class="modal-header">
+            <h2>${_ai.sourceDraft ? 'Finish draft' : 'New approval'}</h2>
+            <button class="close" id="closeModal">×</button>
+          </div>
+
+          ${_ai.sourceDraft ? `<div class="card" style="margin-bottom: 14px; background: var(--card-2);">
+            <div class="card-meta">${_ai.sourceDraft.senderName ? 'From Slack: ' + esc(_ai.sourceDraft.senderName) : 'From Slack'}</div>
+            <div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(_ai.sourceDraft.description)}</div>
+          </div>` : ''}
+
+          ${lastUserMsgs.length > 1 ? lastUserMsgs.slice(0, -1).map((t) => `
+            <div class="card" style="background: var(--card-2); margin-bottom: 8px; font-size: 13px;">
+              <div class="card-meta">You said</div><div style="margin-top: 4px; white-space: pre-wrap;">${esc(t)}</div>
+            </div>`).join('') : ''}
+
+          ${_ai.phase === 'ask' && _ai.question ? `
+            <div class="card card-dark" style="margin-bottom: 14px;">
+              <div class="card-meta" style="color:#d9f03a;">AI asks</div>
+              <div style="margin-top: 6px; font-size: 14px;">${esc(_ai.question)}</div>
+            </div>` : ''}
+
+          ${_ai.phase === 'thinking' ? `
+            <div style="text-align:center; padding: 30px 0;">
+              <span class="spin"></span><div style="margin-top: 10px; color: var(--text-dim);">Thinking…</div>
+            </div>
+          ` : `
+            <div class="field">
+              <label>${_ai.phase === 'ask' ? 'Your reply' : (isFirst ? 'Describe the request' : 'Add more details')}</label>
+              <textarea class="textarea" id="aiInput" rows="4" placeholder="${isFirst ? 'e.g. Need to pay Adobe \$240 USD for next year\'s Creative Cloud subscription, invoice attached. Or just speak.' : 'Answer the question above…'}">${esc(_ai.sourceDraft && isFirst ? _ai.sourceDraft.description : '')}</textarea>
+            </div>
+
+            <div class="card-row" style="gap: 10px; flex-wrap: wrap;">
+              <button class="btn" id="recordBtn">${_ai.recording ? '⏹ Stop recording' : '🎤 Dictate'}</button>
+              <button class="btn" id="attachFilesBtn">📎 Add files</button>
+              <input type="file" id="aiFileInput" multiple style="display:none;" accept="*/*" />
+              <span style="flex:1"></span>
+              <span class="card-meta" id="aiFileCount">${_ai.files.length ? _ai.files.length + ' file' + (_ai.files.length>1?'s':'') + ' attached' : ''}${_ai.images.length ? (_ai.files.length ? ' · ' : '') + _ai.images.length + ' image' + (_ai.images.length>1?'s':'') + ' for AI' : ''}</span>
+            </div>
+
+            ${_ai.files.length ? `<div style="margin-top: 10px;">${_ai.files.map((f, i) => `
+              <div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span><button class="btn-ghost" data-rm-file="${i}" style="padding: 2px 6px; color: var(--danger); border: none; background: transparent; cursor: pointer;">×</button></div>
+            `).join('')}</div>` : ''}
+          `}
+
+          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+
+          <div class="modal-footer">
+            <button class="btn" id="cancelNew">Cancel</button>
+            ${_ai.phase !== 'thinking' ? `<button class="btn btn-primary" id="aiSubmit">${isFirst ? 'Draft with AI' : 'Send reply'}</button>` : ''}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderAIReviewModal() {
+    const p = _ai.proposed || {};
     return `
       <div class="scrim">
         <div class="modal">
           <div class="modal-header">
-            <h2>New approval request${draft ? ' (from Slack)' : ''}</h2>
+            <h2>Review & submit</h2>
             <button class="close" id="closeModal">×</button>
           </div>
-          ${draft ? `<div class="card" style="margin-bottom: 16px; background: var(--bg-2);"><div class="card-meta">From Slack: ${esc(draft.senderName || 'message')}</div><div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(draft.description)}</div></div>` : ''}
+          <p class="card-meta" style="margin-top:-8px;margin-bottom:14px;">AI drafted this from what you told it. Edit anything before submitting.</p>
+
           <div class="field">
             <label>Title</label>
-            <input class="input" id="newTitle" value="${esc(draft?.title || '')}" />
+            <input class="input" id="newTitle" value="${esc(p.title || '')}" />
           </div>
           <div class="field">
             <label>Category</label>
             <select class="select" id="newCategory">
-              <option value="payments">Payments</option>
-              <option value="content">Content</option>
-              <option value="other" selected>Other</option>
+              <option value="payments" ${p.category === 'payments' ? 'selected' : ''}>Payments</option>
+              <option value="content" ${p.category === 'content' ? 'selected' : ''}>Content</option>
+              <option value="other" ${(!p.category || p.category === 'other') ? 'selected' : ''}>Other</option>
             </select>
           </div>
           <div id="categoryFields"></div>
           <div class="field">
-            <label>Description</label>
-            <textarea class="textarea" id="newDescription">${esc(draft?.description || '')}</textarea>
-          </div>
-          <div class="field">
             <label>Approval path</label>
-            <div class="help" style="margin-top: 4px;">Each approver acts in order. Path editors (dept heads / C-level / admin) can change it later.</div>
+            <div class="help" style="margin-top: 4px;">Each approver acts in order. Drag/edit as needed.</div>
             <div class="step-builder" id="stepBuilder">
-              ${stepBuilderRowHTML('', 1)}
+              ${(p.suggestedApproverIds && p.suggestedApproverIds.length ? p.suggestedApproverIds : ['']).map((id, i) => stepBuilderRowHTML(id, i + 1)).join('')}
             </div>
             <button class="btn" id="addStep">+ Add step</button>
           </div>
-          <div class="field">
-            <label>Attachments (optional)</label>
-            <input type="file" id="newFiles" multiple />
-            <div class="help">Files attach after the task is created.</div>
-          </div>
-          <div class="error" id="newError" style="display:none;"></div>
+          ${_ai.files.length ? `<div class="field"><label>Attachments (${_ai.files.length})</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span></div>`).join('')}</div>` : ''}
+
+          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+
           <div class="modal-footer">
-            <button class="btn" id="cancelNew">Cancel</button>
-            <button class="btn btn-primary" id="submitNew">Submit for approval</button>
+            <button class="btn" id="backToAI">← Refine with AI</button>
+            <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
           </div>
         </div>
       </div>`;
@@ -972,11 +1112,30 @@
     const backHome = document.getElementById('backHome');
     if (backHome) backHome.onclick = () => nav('/');
 
-    document.getElementById('fab').onclick = async () => {
-      const r = await api('/api/task-drafts').catch(() => ({ drafts: [] }));
-      state.drafts = r.drafts || [];
-      nav('/new');
-    };
+    document.getElementById('fab').onclick = startNewApproval;
+    const newApprovalBtn = document.getElementById('newApprovalBtn');
+    if (newApprovalBtn) newApprovalBtn.onclick = startNewApproval;
+
+    // Drafts panel — finish or delete
+    document.querySelectorAll('[data-finish-draft]').forEach((b) => {
+      b.onclick = () => {
+        const draft = state.drafts.find((d) => d.id === b.dataset.finishDraft);
+        if (!draft) return;
+        resetAI();
+        _ai.sourceDraft = draft;
+        _ai.draftId = draft.id;
+        state.modalOpen = 'new';
+        render();
+      };
+    });
+    document.querySelectorAll('[data-delete-draft]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Delete this draft?')) return;
+        await api('/api/task-drafts/' + b.dataset.deleteDraft, { method: 'DELETE' });
+        await refreshAll();
+        render();
+      };
+    });
     document.getElementById('bellBtn').onclick = openInbox;
     document.getElementById('profileBtn').onclick = () => { state.drawerOpen = true; _connectInfo = {}; render(); };
 
@@ -1046,55 +1205,212 @@
   }
 
   function bindNewTaskModal() {
-    document.getElementById('closeModal').onclick = () => { state.modalOpen = null; nav('/'); };
-    document.getElementById('cancelNew').onclick = () => { state.modalOpen = null; nav('/'); };
+    // Wire up: based on phase, different controls exist.
+    document.getElementById('closeModal').onclick = closeAIModal;
+    const cancelBtn = document.getElementById('cancelNew');
+    if (cancelBtn) cancelBtn.onclick = closeAIModal;
 
+    if (_ai.phase === 'review') return bindAIReviewControls();
+    if (_ai.phase === 'thinking') return; // nothing to bind
+
+    // describe / ask phase
+    const aiSubmit = document.getElementById('aiSubmit');
+    if (aiSubmit) aiSubmit.onclick = sendToAI;
+
+    const recordBtn = document.getElementById('recordBtn');
+    if (recordBtn) recordBtn.onclick = toggleRecording;
+
+    const attachBtn = document.getElementById('attachFilesBtn');
+    if (attachBtn) attachBtn.onclick = () => document.getElementById('aiFileInput').click();
+    const fileInput = document.getElementById('aiFileInput');
+    if (fileInput) fileInput.onchange = handleFileSelect;
+
+    document.querySelectorAll('[data-rm-file]').forEach((b) => {
+      b.onclick = () => {
+        _ai.files.splice(Number(b.dataset.rmFile), 1);
+        render();
+      };
+    });
+
+    // Auto-focus the textarea
+    const ta = document.getElementById('aiInput');
+    if (ta) setTimeout(() => ta.focus(), 50);
+  }
+
+  function closeAIModal() {
+    if (_mediaRecorder && _mediaRecorder.state === 'recording') _mediaRecorder.stop();
+    resetAI();
+    state.modalOpen = null;
+    nav('/');
+  }
+
+  function startNewApproval() {
+    resetAI();
+    state.modalOpen = 'new';
+    render();
+  }
+
+  async function handleFileSelect(e) {
+    const files = Array.from(e.target.files || []);
+    for (const f of files) {
+      _ai.files.push(f);
+      // If it's an image, also send to AI for context
+      if (f.type.startsWith('image/') && f.size < 4 * 1024 * 1024) {
+        const base64 = await fileToBase64(f);
+        _ai.images.push({ base64, mediaType: f.type });
+      }
+    }
+    render();
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ─── Voice recording (MediaRecorder → /api/transcribe) ───
+  let _mediaRecorder = null;
+  let _recordedChunks = [];
+  async function toggleRecording() {
+    if (_ai.recording) {
+      _mediaRecorder?.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      _mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      _recordedChunks = [];
+      _mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) _recordedChunks.push(e.data); };
+      _mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        _ai.recording = false;
+        render();
+        const blob = new Blob(_recordedChunks, { type: 'audio/webm' });
+        if (blob.size < 1000) return; // ignore micro-clicks
+        try {
+          const base64 = await fileToBase64(new File([blob], 'voice.webm', { type: 'audio/webm' }));
+          const r = await api('/api/transcribe', { method: 'POST', body: { audio: base64, mimeType: 'audio/webm' } });
+          const ta = document.getElementById('aiInput');
+          if (ta) {
+            ta.value = (ta.value ? ta.value + ' ' : '') + (r.text || '');
+            ta.focus();
+          }
+        } catch (e) {
+          _ai.error = 'Transcription failed: ' + e.message;
+          render();
+        }
+      };
+      _mediaRecorder.start();
+      _ai.recording = true;
+      render();
+    } catch (e) {
+      _ai.error = 'Microphone access denied: ' + e.message;
+      render();
+    }
+  }
+
+  async function sendToAI() {
+    const input = (document.getElementById('aiInput')?.value || '').trim();
+    if (!input && !_ai.images.length) {
+      _ai.error = 'Type or dictate a description first.';
+      render();
+      return;
+    }
+    _ai.error = null;
+    _ai.messages.push({ role: 'user', content: input || 'Draft based on attached images.' });
+    _ai.phase = 'thinking';
+    render();
+    try {
+      const r = await api('/api/ai-draft', { method: 'POST', body: {
+        messages: _ai.messages,
+        images: _ai.images,
+        source: _ai.sourceDraft ? 'slack' : 'web',
+      } });
+      // After first send, don't re-send images on subsequent turns (saves tokens)
+      _ai.images = [];
+      if (r.needsMoreInfo) {
+        _ai.messages.push({ role: 'assistant', content: JSON.stringify(r) });
+        _ai.phase = 'ask';
+        _ai.question = r.question;
+      } else {
+        _ai.proposed = r.proposed;
+        _ai.phase = 'review';
+      }
+    } catch (e) {
+      _ai.error = e.message;
+      _ai.phase = _ai.messages.length > 1 ? 'ask' : 'describe';
+    }
+    render();
+  }
+
+  function bindAIReviewControls() {
     const catEl = document.getElementById('newCategory');
     const fieldsEl = document.getElementById('categoryFields');
-    function repaintFields() { fieldsEl.innerHTML = renderCategoryFields(catEl.value); }
+    function repaintFields() {
+      fieldsEl.innerHTML = renderCategoryFields(catEl.value);
+      // Pre-fill from AI proposal
+      const f = _ai.proposed?.fields || {};
+      if (catEl.value === 'payments') {
+        if (f.amount != null) document.getElementById('fAmount').value = f.amount;
+        if (f.currency) document.getElementById('fCurrency').value = f.currency;
+        if (f.vendor) document.getElementById('fVendor').value = f.vendor;
+        if (f.purpose) document.getElementById('fPurpose').value = f.purpose;
+        if (f.dueDate) document.getElementById('fDueDate').value = f.dueDate;
+      } else if (catEl.value === 'content') {
+        if (f.link) document.getElementById('fLink').value = f.link;
+      }
+    }
     repaintFields();
     catEl.onchange = repaintFields;
 
     document.getElementById('addStep').onclick = () => {
       const b = document.getElementById('stepBuilder');
-      const idx = b.children.length + 1;
       const div = document.createElement('div');
-      div.innerHTML = stepBuilderRowHTML('', idx);
+      div.innerHTML = stepBuilderRowHTML('', b.children.length + 1);
       b.appendChild(div.firstChild);
       attachRowHandlers(b);
     };
     attachRowHandlers(document.getElementById('stepBuilder'));
 
-    document.getElementById('submitNew').onclick = async () => {
+    document.getElementById('backToAI').onclick = () => {
+      _ai.phase = 'ask';
+      _ai.question = 'What would you like to change about the draft?';
+      render();
+    };
+
+    document.getElementById('submitFinal').onclick = async () => {
       const title = document.getElementById('newTitle').value.trim();
       const category = catEl.value;
-      const description = document.getElementById('newDescription').value.trim();
-      const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
       const fields = gatherCategoryFields(category);
-      fields.description = description;
-      const errEl = document.getElementById('newError');
-      errEl.style.display = 'none';
-      if (!title) { errEl.textContent = 'Title required'; errEl.style.display = 'block'; return; }
-      if (!approverIds.length) { errEl.textContent = 'Add at least one approver'; errEl.style.display = 'block'; return; }
+      fields.description = _ai.proposed?.fields?.description || '';
+      const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
+      _ai.error = null;
+      if (!title) { _ai.error = 'Title required'; render(); return; }
+      if (!approverIds.length) { _ai.error = 'Add at least one approver'; render(); return; }
       try {
-        const draftId = state.route.query.draft;
-        const draft = state.drafts.find((d) => d.id === draftId);
         const r = await api('/api/tasks', { method: 'POST', body: {
           title, category, fields, approverIds,
-          source: draft ? 'slack' : 'web',
-          slackMessage: draft?.slackMessage || null,
+          source: _ai.sourceDraft ? 'slack' : 'web',
+          slackMessage: _ai.sourceDraft?.slackMessage || null,
         } });
-        // Upload any files
-        const fileInput = document.getElementById('newFiles');
-        if (fileInput.files.length) await uploadFiles(fileInput.files, r.task.id);
-        // Drop the draft
-        if (draftId) await api('/api/task-drafts/' + draftId, { method: 'DELETE' }).catch(() => {});
+        if (_ai.files.length) await uploadFiles(_ai.files, r.task.id);
+        if (_ai.draftId) await api('/api/task-drafts/' + _ai.draftId, { method: 'DELETE' }).catch(() => {});
+        const newTaskId = r.task.id;
+        resetAI();
         state.modalOpen = null;
         await refreshAll();
-        nav('/task/' + r.task.id);
+        nav('/task/' + newTaskId);
       } catch (e) {
-        errEl.textContent = e.message;
-        errEl.style.display = 'block';
+        _ai.error = e.message;
+        render();
       }
     };
   }

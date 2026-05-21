@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
     "@netlify/blobs": "^8.1.0",
     "bcryptjs": "^2.4.3",
     "jose": "^5.9.6"
