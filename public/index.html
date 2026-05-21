@@ -1,0 +1,1279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>approve.mira</title>
+  <style>
+    :root {
+      --bg: #f4f3ee;          /* warm cream canvas */
+      --bg-2: #ffffff;        /* surfaces */
+      --bg-3: #ebeae3;        /* nav background */
+      --card: #ffffff;
+      --card-2: #f7f6f0;
+      --dark-card: #16181b;   /* the "focused" black tile */
+      --border: #e5e3da;
+      --border-2: #d4d2c8;
+      --text: #16181b;
+      --text-dim: #6b7076;
+      --text-faint: #9aa0a6;
+      --accent: #d9f03a;      /* neon yellow */
+      --accent-dim: #b6cb2a;
+      --accent-soft: #d9f03a40;
+      --danger: #e15555;
+      --ok: #3ba974;
+      --warn: #d99a2a;
+      --radius: 22px;
+      --radius-sm: 14px;
+      --shadow: 0 8px 32px rgba(20,22,25,0.06);
+      --shadow-card: 0 2px 14px rgba(20,22,25,0.04);
+      --shadow-hover: 0 12px 28px rgba(20,22,25,0.10);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--accent);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+    /* Yellow frame wrapping the whole app, like the reference */
+    .frame {
+      min-height: 100vh;
+      padding: 14px;
+      background: var(--accent);
+    }
+    .canvas {
+      background: var(--bg);
+      border-radius: 28px;
+      min-height: calc(100vh - 28px);
+      padding: 26px 30px 36px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid #1a1a1a14;
+    }
+
+    /* ── Top bar (pill nav, matches reference) ── */
+    .topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; flex-wrap: wrap; }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 20px; letter-spacing: -0.4px;
+      padding-right: 14px;
+    }
+    .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 14px var(--accent); }
+    .pill-nav { display: flex; gap: 4px; background: var(--bg-2); border-radius: 999px; padding: 5px; box-shadow: var(--shadow-card); }
+    .pill {
+      padding: 9px 18px; border-radius: 999px;
+      color: var(--text-dim); font-weight: 500; cursor: pointer;
+      transition: all 0.15s ease;
+      white-space: nowrap; border: none; background: transparent; font-size: 13px;
+    }
+    .pill:hover { color: var(--text); }
+    .pill.active { background: var(--accent); color: #0a0b0c; font-weight: 600; }
+    .pill .badge { display: inline-block; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--bg-3); color: var(--text); font-size: 11px; line-height: 18px; text-align: center; }
+    .pill.active .badge { background: #0a0b0c; color: var(--accent); }
+    .topbar .spacer { flex: 1; }
+    .icon-btn {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--bg-2); border: none;
+      color: var(--text); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+      position: relative; box-shadow: var(--shadow-card);
+    }
+    .icon-btn:hover { box-shadow: var(--shadow-hover); }
+    .icon-btn .badge-dot { position: absolute; top: 8px; right: 10px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-2); }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--accent); color: #0a0b0c;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; cursor: pointer; font-size: 15px;
+      box-shadow: var(--shadow-card);
+    }
+    /* Avatar stack like the reference's people row */
+    .avatar-stack { display: inline-flex; }
+    .avatar-stack .avatar { margin-left: -10px; border: 3px solid var(--bg); }
+    .avatar-stack .avatar:first-child { margin-left: 0; }
+    .avatar-sm { width: 32px; height: 32px; font-size: 12px; background: var(--bg-3); color: var(--text); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 999px; border: none;
+      background: var(--bg-2); color: var(--text); cursor: pointer; font-weight: 500;
+      transition: all 0.15s ease; font-size: 13px; box-shadow: var(--shadow-card);
+    }
+    .btn:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+    .btn-primary { background: var(--accent); color: #0a0b0c; font-weight: 600; }
+    .btn-primary:hover { background: var(--accent-dim); }
+    .btn-dark { background: var(--dark-card); color: var(--bg-2); }
+    .btn-dark:hover { background: #2a2d31; }
+    .btn-danger { background: var(--bg-2); color: var(--danger); }
+    .btn-danger:hover { background: rgba(225,85,85,0.08); }
+    .btn-ghost { background: transparent; box-shadow: none; }
+    .btn-ghost:hover { background: var(--bg-3); box-shadow: none; transform: none; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .fab {
+      position: fixed; right: 40px; bottom: 40px;
+      width: 60px; height: 60px; border-radius: 50%;
+      background: var(--dark-card); color: var(--accent); border: none;
+      font-size: 28px; cursor: pointer; box-shadow: 0 12px 28px rgba(20,22,25,0.25);
+      display: flex; align-items: center; justify-content: center; font-weight: 400;
+    }
+    .fab:hover { transform: translateY(-2px) scale(1.04); }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px;
+      transition: all 0.18s ease;
+      box-shadow: var(--shadow-card);
+    }
+    .card-hover { cursor: pointer; }
+    .card-hover:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+    .card-dark { background: var(--dark-card); color: var(--bg-2); }
+    .card-dark .card-meta { color: #9aa0a6; }
+    .card-row { display: flex; align-items: center; gap: 14px; }
+    .card-title { font-weight: 600; font-size: 15px; }
+    .card-meta { color: var(--text-dim); font-size: 12px; }
+    .grid { display: grid; gap: 14px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 900px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+    /* ── Status chips ── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 11px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase;
+      border: none;
+    }
+    .chip-yellow { background: var(--accent); color: #16181b; }
+    .chip-green  { background: rgba(59,169,116,0.14); color: var(--ok); }
+    .chip-red    { background: rgba(225,85,85,0.14); color: var(--danger); }
+    .chip-dim    { background: var(--bg-3); color: var(--text-dim); }
+    .card-dark .chip-dim { background: #2a2d31; color: #9aa0a6; }
+
+    /* ── Forms ── */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+    .input, .select, .textarea {
+      width: 100%; padding: 12px 16px; border-radius: 14px;
+      background: var(--bg-2); border: 1px solid var(--border); color: var(--text);
+      font-family: inherit; font-size: 14px; transition: all 0.15s;
+    }
+    .input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--text); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .textarea { resize: vertical; min-height: 90px; }
+    .help { font-size: 12px; color: var(--text-faint); margin-top: -8px; margin-bottom: 16px; }
+    .error { color: var(--danger); font-size: 13px; margin: 10px 0; }
+    .ok { color: var(--ok); font-size: 13px; margin: 10px 0; }
+
+    /* ── Timeline (the showpiece, mirrors the cardiology rail) ── */
+    .timeline { position: relative; padding: 36px 0 12px; }
+    .timeline-rail {
+      position: absolute; top: 56px; left: 24px; right: 24px; height: 2px;
+      background: var(--border);
+    }
+    .timeline-steps { display: flex; align-items: stretch; gap: 18px; position: relative; padding: 0 8px; overflow-x: auto; }
+    .timeline-step { flex: 1 0 200px; display: flex; flex-direction: column; align-items: flex-start; gap: 14px; }
+    .timeline-node {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: var(--bg-2); border: none;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: var(--text-dim);
+      z-index: 1; position: relative; box-shadow: var(--shadow-card);
+    }
+    .timeline-step.done .timeline-node { background: var(--accent); color: #0a0b0c; }
+    .timeline-step.pending .timeline-node { background: var(--dark-card); color: var(--accent); box-shadow: 0 0 0 6px var(--accent-soft), var(--shadow-card); }
+    .timeline-step.declined .timeline-node { background: var(--danger); color: #ffffff; }
+    .timeline-step.sent_back .timeline-node { background: var(--warn); color: #ffffff; }
+    .timeline-card {
+      width: 100%; padding: 14px 16px;
+      background: var(--card-2); border: none;
+      border-radius: var(--radius-sm); box-shadow: var(--shadow-card);
+    }
+    .timeline-step.pending .timeline-card { background: var(--dark-card); color: var(--bg-2); }
+    .timeline-step.pending .timeline-card .card-meta { color: #9aa0a6; }
+
+    /* ── Modal / drawer ── */
+    .scrim { position: fixed; inset: 0; background: rgba(20,22,25,0.45); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    .modal { width: 100%; max-width: 720px; max-height: 90vh; overflow-y: auto; background: var(--bg-2); border-radius: var(--radius); padding: 28px; box-shadow: 0 30px 80px rgba(20,22,25,0.20); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .modal h2 { margin: 0; font-size: 20px; font-weight: 600; }
+    .modal .close { background: transparent; border: none; color: var(--text-dim); font-size: 28px; cursor: pointer; padding: 0; line-height: 1; }
+    .modal .close:hover { color: var(--text); }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--border); }
+
+    /* ── Empty state ── */
+    .empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+    .empty h3 { color: var(--text); margin-bottom: 8px; }
+
+    /* ── Login ── */
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 28px; background: var(--accent); }
+    .login-card { width: 100%; max-width: 440px; background: var(--bg-2); border-radius: 28px; padding: 40px; box-shadow: 0 30px 80px rgba(20,22,25,0.15); }
+    .login-card h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.5px; }
+    .login-card .sub { color: var(--text-dim); margin-bottom: 28px; }
+
+    /* ── File chips ── */
+    .file-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--card-2); border-radius: 12px; margin-bottom: 8px; }
+    .file-row .name { flex: 1; font-size: 13px; font-weight: 500; }
+    .file-row .size { font-size: 11px; color: var(--text-dim); }
+
+    /* ── Approval-path builder ── */
+    .step-builder { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+    .step-builder-row { display: flex; gap: 10px; align-items: center; }
+    .step-builder-row .num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #0a0b0c; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+    .step-builder-row .select { flex: 1; }
+    .step-builder-row .rm { width: 36px; height: 36px; border-radius: 10px; border: none; background: var(--card-2); color: var(--text-dim); cursor: pointer; font-size: 18px; line-height: 1; }
+    .step-builder-row .rm:hover { color: var(--danger); background: rgba(225,85,85,0.10); }
+
+    /* ── Misc ── */
+    a { color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+    a:hover { text-decoration-color: var(--text); }
+    .hr { height: 1px; background: var(--border); margin: 18px 0; }
+    .kv { display: grid; grid-template-columns: 130px 1fr; gap: 8px 16px; font-size: 13px; }
+    .kv .k { color: var(--text-dim); }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 14px 10px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .table th { font-weight: 600; color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border-2); }
+    .table tbody tr:hover { background: var(--card-2); }
+    .mono { font-family: 'SF Mono', ui-monospace, monospace; font-size: 12px; }
+    .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .copy-pill { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; background: var(--card-2); font-family: 'SF Mono', monospace; font-size: 13px; cursor: pointer; }
+    .copy-pill:hover { background: var(--accent); }
+
+    /* ── Drawer for profile ── */
+    .drawer { position: fixed; top: 14px; right: 14px; bottom: 14px; width: 440px; max-width: calc(100vw - 28px); background: var(--bg-2); border-radius: 24px; padding: 32px; overflow-y: auto; z-index: 99; box-shadow: -20px 30px 60px rgba(20,22,25,0.18); }
+    .drawer h2 { margin: 0 0 18px; font-size: 20px; }
+    .drawer-section { padding: 18px 0; border-bottom: 1px solid var(--border); }
+    .drawer-section:last-of-type { border-bottom: none; }
+    .drawer-section h3 { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 12px; font-weight: 600; }
+
+    /* Spinner */
+    .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--text); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Empty state on light bg */
+    .empty { text-align: center; padding: 80px 20px; color: var(--text-dim); }
+    .empty h3 { color: var(--text); margin-bottom: 8px; font-size: 18px; }
+
+    /* Stat tile (admin big numbers, like the vitals cards) */
+    .stat-tile { background: var(--card); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-card); }
+    .stat-tile .label { font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+    .stat-tile .value { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; }
+    .stat-tile.accent { background: var(--accent); }
+    .stat-tile.dark { background: var(--dark-card); color: var(--bg-2); }
+    .stat-tile.dark .label { color: #9aa0a6; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+  // ────────────────────────────────────────────────────────────────────
+  // approve.mira — single-page client
+  // ────────────────────────────────────────────────────────────────────
+
+  const TOKEN_KEY = 'approve.mira.token';
+  const state = {
+    user: null,
+    users: [],
+    departments: [],
+    tasks: [],
+    drafts: [],
+    inbox: [],
+    unread: 0,
+    analytics: null,
+    route: parseRoute(),
+    scope: 'pending',
+    category: 'all',
+    drawerOpen: false,
+    modalOpen: null, // 'new' | 'admin-user' | etc
+    flash: null,
+  };
+
+  function parseRoute() {
+    const hash = window.location.hash.replace(/^#/, '') || '/';
+    const [path, queryStr] = hash.split('?');
+    const query = Object.fromEntries(new URLSearchParams(queryStr || ''));
+    const segs = path.split('/').filter(Boolean);
+    return { path, segs, query };
+  }
+  window.addEventListener('hashchange', () => {
+    state.route = parseRoute();
+    state.modalOpen = null;
+    if (state.route.path.startsWith('/new')) state.modalOpen = 'new';
+    render();
+  });
+
+  function nav(to) {
+    window.location.hash = to;
+  }
+
+  // ─── API ───
+  async function api(path, options = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) headers.Authorization = 'Bearer ' + token;
+    const res = await fetch(path, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
+    const text = await res.text();
+    let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    return data;
+  }
+  async function apiRaw(path, opts) {
+    const token = localStorage.getItem(TOKEN_KEY);
+    return fetch(path, { ...opts, headers: { ...(opts?.headers || {}), Authorization: 'Bearer ' + token } });
+  }
+
+  function logout() {
+    localStorage.removeItem(TOKEN_KEY);
+    state.user = null;
+    nav('/');
+    render();
+  }
+
+  // ─── Helpers ───
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtDate = (iso) => iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+  const fmtAgo = (iso) => {
+    if (!iso) return '';
+    const ms = Date.now() - new Date(iso).getTime();
+    const m = Math.round(ms / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.round(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.round(h / 24)}d ago`;
+  };
+  const fmtDuration = (ms) => {
+    if (!ms || ms < 0) return '—';
+    const m = Math.round(ms / 60000);
+    if (m < 60) return `${m}m`;
+    const h = m / 60;
+    if (h < 48) return `${h.toFixed(1)}h`;
+    return `${Math.round(h / 24)}d`;
+  };
+  const userById = (id) => state.users.find((u) => u.id === id);
+  const userName = (id) => userById(id)?.name || '—';
+  const roleLabel = (r) => ({ employee: 'Employee', manager: 'Manager', dept_head: 'Dept Head', c_level: 'C-Level', admin: 'Admin' }[r] || r);
+  const categoryLabel = (c) => ({ payments: 'Payments', content: 'Content', other: 'Other' }[c] || c);
+
+  function statusChip(t) {
+    if (t.status === 'approved') return `<span class="chip chip-green">Approved</span>`;
+    if (t.status === 'declined') return `<span class="chip chip-red">Declined</span>`;
+    return `<span class="chip chip-yellow">Under review</span>`;
+  }
+
+  // ─── Boot ───
+  async function boot() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (!token) { render(); return; }
+    try {
+      const me = await api('/api/me');
+      state.user = me.user;
+      state.unread = me.unread;
+      state.inbox = me.inbox || [];
+      await refreshAll();
+    } catch {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+    render();
+  }
+
+  async function refreshAll() {
+    const [tasks, users, departments] = await Promise.all([
+      api('/api/tasks?scope=' + (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'mine' : state.scope)).catch(() => ({ tasks: [] })),
+      api('/api/users').catch(() => ({ users: [] })),
+      api('/api/departments').catch(() => ({ departments: [] })),
+    ]);
+    state.tasks = tasks.tasks || [];
+    state.users = users.users || [];
+    state.departments = departments.departments || [];
+    if (state.user?.role === 'admin' || state.user?.role === 'c_level') {
+      api('/api/analytics').then((a) => { state.analytics = a; render(); }).catch(() => {});
+    }
+  }
+
+  // ─── Render top-level ───
+  function render() {
+    const root = document.getElementById('root');
+    if (!state.user) {
+      root.innerHTML = renderLogin();
+      bindLogin();
+      return;
+    }
+    root.innerHTML = `
+      <div class="frame">
+        <div class="canvas">
+          ${renderTopbar()}
+          ${renderRoute()}
+          <button class="fab" id="fab" title="New approval request">+</button>
+          ${state.modalOpen === 'new' ? renderNewTaskModal() : ''}
+          ${state.modalOpen === 'admin-user' ? renderAdminUserModal() : ''}
+          ${state.drawerOpen ? renderDrawer() : ''}
+          ${state.flash ? `<div class="scrim" id="flashScrim"><div class="modal" style="max-width:420px">${state.flash}<div class="modal-footer"><button class="btn btn-primary" id="flashOk">OK</button></div></div></div>` : ''}
+        </div>
+      </div>`;
+    bindMain();
+  }
+
+  // ─── Login screen ───
+  function renderLogin() {
+    const firstSetup = state.route.query.setup === '1';
+    return `
+      <div class="login-wrap">
+        <div class="login-card">
+          <h1><span style="color: var(--accent)">approve</span>.mira</h1>
+          <p class="sub">${firstSetup ? 'Set up the first admin (must be daria.l@miracreative.ae).' : 'Sign in with your email and passcode.'}</p>
+          <div class="field"><label>Email</label><input class="input" id="email" type="email" /></div>
+          ${firstSetup ? '<div class="field"><label>Your name</label><input class="input" id="name" /></div>' : ''}
+          <div class="field"><label>Passcode (4–8 digits)</label><input class="input" id="passcode" type="password" inputmode="numeric" maxlength="8" /></div>
+          <div class="error" id="loginError" style="display:none"></div>
+          <button class="btn btn-primary" id="loginBtn" style="width:100%; padding: 12px 18px;">${firstSetup ? 'Create admin' : 'Sign in'}</button>
+          <p class="sub" style="margin-top: 20px; font-size: 12px;">${firstSetup
+            ? `<a href="#/">← Back to sign in</a>`
+            : `First time setting up? <a href="#/?setup=1">Initialize first admin →</a>`}</p>
+        </div>
+      </div>`;
+  }
+  function bindLogin() {
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+    btn.onclick = async () => {
+      const email = document.getElementById('email').value.trim();
+      const passcode = document.getElementById('passcode').value.trim();
+      const firstSetup = state.route.query.setup === '1';
+      const name = firstSetup ? document.getElementById('name')?.value.trim() : undefined;
+      errEl.style.display = 'none';
+      try {
+        const r = await api('/api/login', { method: 'POST', body: { email, passcode, firstSetup, name } });
+        localStorage.setItem(TOKEN_KEY, r.token);
+        state.user = r.user;
+        nav('/');
+        await refreshAll();
+        render();
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }
+    };
+  }
+
+  // ─── Topbar ───
+  function renderTopbar() {
+    const isAdmin = state.user.role === 'admin';
+    const isExec = isAdmin || state.user.role === 'c_level';
+    const pending = state.tasks.filter((t) => {
+      if (t.status !== 'under_review') return false;
+      const step = t.steps.find((s) => s.status === 'pending');
+      return step?.approverId === state.user.id;
+    }).length;
+    return `
+      <div class="topbar">
+        <div class="brand"><span class="dot"></span>approve.mira</div>
+        <div class="pill-nav">
+          <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">My queue${pending ? `<span class="badge">${pending}</span>` : ''}</button>
+          <button class="pill ${state.scope === 'submitted' ? 'active' : ''}" data-scope="submitted">Submitted</button>
+          <button class="pill ${state.scope === 'mine' ? 'active' : ''}" data-scope="mine">All mine</button>
+          ${isExec ? `<button class="pill ${state.scope === 'all' ? 'active' : ''}" data-scope="all">All tasks</button>` : ''}
+          ${isAdmin ? `<button class="pill ${state.route.path === '/admin' ? 'active' : ''}" id="navAdmin">Admin</button>` : ''}
+        </div>
+        <div class="spacer"></div>
+        ${state.route.path.startsWith('/task/') || state.route.path === '/admin' ? `<button class="pill" id="backHome">← Home</button>` : `
+        <div class="pill-nav">
+          <button class="pill ${state.category === 'all' ? 'active' : ''}" data-cat="all">All</button>
+          <button class="pill ${state.category === 'payments' ? 'active' : ''}" data-cat="payments">Payments</button>
+          <button class="pill ${state.category === 'content' ? 'active' : ''}" data-cat="content">Content</button>
+          <button class="pill ${state.category === 'other' ? 'active' : ''}" data-cat="other">Other</button>
+        </div>`}
+        <button class="icon-btn" id="bellBtn" title="Notifications">${bellSvg()}${state.unread ? '<span class="badge-dot"></span>' : ''}</button>
+        <div class="avatar" id="profileBtn" title="Profile">${esc((state.user.name || '?').slice(0,1).toUpperCase())}</div>
+      </div>`;
+  }
+  const bellSvg = () => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1z"/><path d="M10 21h4"/></svg>`;
+
+  function renderRoute() {
+    if (state.route.segs[0] === 'task') return renderTaskDetail(state.route.segs[1]);
+    if (state.route.path === '/admin') return renderAdmin();
+    return renderHome();
+  }
+
+  // ─── Home: task list ───
+  function renderHome() {
+    const filteredTasks = state.tasks.filter((t) => state.category === 'all' || t.category === state.category);
+    if (!filteredTasks.length) {
+      return `<div class="empty"><h3>Nothing here yet</h3><p>${state.scope === 'pending' ? 'No approvals waiting on you. ' : ''}Click + to create a new approval request, or send a message from Slack with the "Send to approve.mira" shortcut.</p></div>`;
+    }
+    return `<div class="grid" style="gap: 12px;">
+      ${filteredTasks.map((t) => renderTaskCard(t)).join('')}
+    </div>`;
+  }
+  function renderTaskCard(t) {
+    const submitter = userName(t.submitterId);
+    const step = t.steps.find((s) => s.status === 'pending');
+    const stepInfo = step ? `Step ${step.stepNumber}/${t.steps.length} · ${userName(step.approverId)}` : `${t.steps.length} step${t.steps.length>1?'s':''}`;
+    const amount = t.category === 'payments' && t.fields?.amount ? `<span class="chip chip-dim">${t.fields.amount} ${esc(t.fields.currency || '')}</span>` : '';
+    return `
+      <div class="card card-hover" style="cursor:pointer" onclick="location.hash='#/task/${t.id}'">
+        <div class="card-row">
+          <div style="flex:1; min-width:0;">
+            <div class="card-row" style="gap:10px; margin-bottom: 6px; flex-wrap: wrap;">
+              <span class="chip chip-dim">${categoryLabel(t.category)}</span>
+              ${statusChip(t)}
+              ${amount}
+              ${t.source === 'slack' ? '<span class="chip chip-dim">Slack</span>' : ''}
+            </div>
+            <div class="card-title">${esc(t.title)}</div>
+            <div class="card-meta" style="margin-top: 6px;">From ${esc(submitter)} · ${stepInfo} · ${fmtAgo(t.updatedAt || t.createdAt)}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ─── Task detail ───
+  let _taskCache = {};
+  async function loadTaskDetail(id) {
+    try {
+      const r = await api('/api/tasks/' + id);
+      _taskCache[id] = r;
+      render();
+    } catch (e) {
+      _taskCache[id] = { error: e.message };
+      render();
+    }
+  }
+  function renderTaskDetail(id) {
+    const cached = _taskCache[id];
+    if (!cached) { loadTaskDetail(id); return `<div class="empty"><span class="spin"></span> Loading…</div>`; }
+    if (cached.error) return `<div class="error">${esc(cached.error)}</div>`;
+    const t = cached.task;
+    const audit = cached.audit || [];
+    const submitter = userName(t.submitterId);
+    const currentStep = t.steps.find((s) => s.status === 'pending');
+    const isMyStep = currentStep && currentStep.approverId === state.user.id && t.status === 'under_review';
+    const isSubmitter = t.submitterId === state.user.id;
+    const canEditPath = ['dept_head', 'c_level', 'admin'].includes(state.user.role);
+    const completedSteps = t.steps.filter((s) => s.status !== 'pending');
+
+    return `
+      <div class="grid" style="gap:18px;">
+        <div class="card-row" style="gap:14px; flex-wrap: wrap;">
+          ${statusChip(t)}
+          <span class="chip chip-dim">${categoryLabel(t.category)}</span>
+          ${t.source === 'slack' ? `<span class="chip chip-dim">From Slack</span>` : ''}
+        </div>
+        <h1 style="margin:0; font-size: 26px; letter-spacing:-0.4px;">${esc(t.title)}</h1>
+        <div class="card-meta">Submitted by <b>${esc(submitter)}</b> · ${fmtDate(t.createdAt)}</div>
+
+        ${renderTimeline(t)}
+
+        ${isMyStep ? renderActionPanel(t, currentStep) : ''}
+        ${t.status === 'declined' && isSubmitter ? `<div class="card"><b>This task was declined.</b> You can edit it and resubmit.<div style="margin-top:10px;"><button class="btn btn-primary" id="resubmitBtn">Resubmit</button></div></div>` : ''}
+
+        <div class="grid grid-2" style="gap:18px;">
+          <div class="card">
+            <h3 style="margin-top:0">Details</h3>
+            ${renderTaskFields(t)}
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0">Attachments (${(t.attachments || []).length})</h3>
+            ${renderAttachments(t)}
+            ${(isSubmitter && !completedSteps.length) || canEditPath || state.user.role === 'admin' ? `
+              <input type="file" id="fileInput" multiple style="display:none;" />
+              <button class="btn" id="uploadBtn" style="margin-top: 10px;">+ Add files</button>
+            ` : ''}
+          </div>
+        </div>
+
+        ${canEditPath || (isSubmitter && !completedSteps.length) ? renderPathEditor(t) : ''}
+
+        <div class="card">
+          <h3 style="margin-top:0">Activity</h3>
+          ${audit.length ? audit.map((a) => `
+            <div style="display:flex; gap:12px; padding:8px 0; border-bottom: 1px solid var(--border); font-size:13px;">
+              <div style="color: var(--text-dim); min-width: 120px;">${fmtDate(a.at)}</div>
+              <div><b>${esc(userName(a.userId))}</b> · ${esc(a.action)}${a.meta?.comment ? ' — ' + esc(a.meta.comment) : ''}</div>
+            </div>`).join('') : '<div class="card-meta">No activity yet.</div>'}
+        </div>
+      </div>`;
+  }
+
+  function renderTimeline(t) {
+    return `
+      <div class="card" style="padding: 8px 16px 16px;">
+        <div class="timeline">
+          <div class="timeline-rail"></div>
+          <div class="timeline-steps">
+            ${t.steps.map((s) => {
+              let cls = 'timeline-step';
+              if (s.status === 'approved') cls += ' done';
+              else if (s.status === 'pending') cls += ' pending';
+              else if (s.status === 'declined') cls += ' declined';
+              else if (s.status === 'sent_back') cls += ' sent_back';
+              const u = userById(s.approverId);
+              return `
+                <div class="${cls}">
+                  <div class="timeline-node">${s.status === 'approved' ? '✓' : s.status === 'declined' ? '✕' : s.stepNumber}</div>
+                  <div class="timeline-card">
+                    <div style="font-weight:600">${esc(u?.name || 'Unknown')}</div>
+                    <div class="card-meta">${roleLabel(u?.role || '')}</div>
+                    <div class="card-meta" style="margin-top: 6px;">
+                      ${s.status === 'pending' ? 'Waiting' : s.status === 'approved' ? '✅ ' + fmtAgo(s.actedAt) : s.status === 'declined' ? '❌ ' + fmtAgo(s.actedAt) : '↩ sent back'}
+                    </div>
+                    ${s.comment ? `<div class="card-meta" style="margin-top:6px; font-style: italic;">"${esc(s.comment)}"</div>` : ''}
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderActionPanel(t, step) {
+    const completed = t.steps.filter((s) => s.status === 'approved');
+    return `
+      <div class="card" style="border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-soft);">
+        <h3 style="margin-top: 0">It's your turn — step ${step.stepNumber} of ${t.steps.length}</h3>
+        <div class="field">
+          <label>Comment (optional)</label>
+          <textarea class="textarea" id="actionComment" placeholder="Add a note…"></textarea>
+        </div>
+        <div class="row-actions" style="gap:10px;">
+          <button class="btn btn-primary" id="approveBtn">Approve</button>
+          <button class="btn btn-danger" id="declineBtn">Decline</button>
+          ${completed.length ? `
+            <select class="select" id="sendBackStep" style="width: auto; max-width: 200px;">
+              <option value="">Send back to…</option>
+              ${completed.map((s) => `<option value="${s.stepNumber}">Step ${s.stepNumber} · ${esc(userName(s.approverId))}</option>`).join('')}
+              <option value="1">Step 1 · ${esc(userName(t.submitterId))} (submitter)</option>
+            </select>
+            <button class="btn" id="sendBackBtn">↩ Send back</button>
+          ` : `
+            <button class="btn" id="sendBackBtn" data-target="1">↩ Send back to submitter</button>
+          `}
+        </div>
+      </div>`;
+  }
+
+  function renderTaskFields(t) {
+    const f = t.fields || {};
+    const rows = [];
+    if (t.category === 'payments') {
+      rows.push(['Amount', f.amount ? `${f.amount} ${esc(f.currency || '')}` : '—']);
+      rows.push(['Vendor', esc(f.vendor || '—')]);
+      rows.push(['Purpose', esc(f.purpose || '—')]);
+      if (f.dueDate) rows.push(['Due', esc(f.dueDate)]);
+    } else if (t.category === 'content') {
+      rows.push(['Link', f.link ? `<a href="${esc(f.link)}" target="_blank">${esc(f.link)}</a>` : '—']);
+    }
+    rows.push(['Description', f.description ? `<div style="white-space: pre-wrap">${esc(f.description)}</div>` : '—']);
+    if (t.slackMessage) rows.push(['Source', `Slack message from ${esc(t.slackMessage.channelName || t.slackMessage.channelId || 'DM')}`]);
+    return `<div class="kv">${rows.map(([k,v]) => `<div class="k">${k}</div><div>${v}</div>`).join('')}</div>`;
+  }
+
+  function renderAttachments(t) {
+    if (!(t.attachments || []).length) return `<div class="card-meta">No files attached.</div>`;
+    return (t.attachments || []).map((a) => `
+      <div class="file-row">
+        <span class="name">${esc(a.name)}</span>
+        <span class="size">${fmtBytes(a.size)}</span>
+        <a class="btn" style="padding: 5px 10px;" href="/api/attachments?id=${esc(a.id)}" target="_blank">Open</a>
+      </div>`).join('');
+  }
+  function fmtBytes(n) {
+    if (!n) return '';
+    const u = ['B','KB','MB','GB'];
+    let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return n.toFixed(n >= 10 || i === 0 ? 0 : 1) + ' ' + u[i];
+  }
+
+  function renderPathEditor(t) {
+    const completed = t.steps.filter((s) => s.status !== 'pending');
+    const pending = t.steps.filter((s) => s.status === 'pending');
+    return `
+      <details class="card">
+        <summary style="cursor: pointer; font-weight: 600;">Edit approval path (${pending.length} remaining steps)</summary>
+        <div style="margin-top: 14px;" id="pathEditor">
+          ${completed.length ? `<div class="card-meta" style="margin-bottom:10px">Already decided (locked): ${completed.map((s) => esc(userName(s.approverId))).join(' → ')}</div>` : ''}
+          <div class="step-builder" id="stepBuilderEdit">
+            ${pending.map((s, idx) => stepBuilderRowHTML(s.approverId, completed.length + idx + 1)).join('')}
+          </div>
+          <div class="row-actions">
+            <button class="btn" id="addStepEdit">+ Add step</button>
+            <button class="btn btn-primary" id="savePath">Save path</button>
+          </div>
+        </div>
+      </details>`;
+  }
+
+  function stepBuilderRowHTML(selectedId, num) {
+    return `<div class="step-builder-row">
+      <div class="num">${num}</div>
+      <select class="select approver-pick">
+        <option value="">Choose approver…</option>
+        ${state.users.map((u) => `<option value="${u.id}" ${u.id === selectedId ? 'selected' : ''}>${esc(u.name)} · ${roleLabel(u.role)}</option>`).join('')}
+      </select>
+      <button class="rm">×</button>
+    </div>`;
+  }
+
+  // ─── New task modal ───
+  function renderNewTaskModal() {
+    const draftId = state.route.query.draft;
+    const draft = state.drafts.find((d) => d.id === draftId);
+    return `
+      <div class="scrim">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>New approval request${draft ? ' (from Slack)' : ''}</h2>
+            <button class="close" id="closeModal">×</button>
+          </div>
+          ${draft ? `<div class="card" style="margin-bottom: 16px; background: var(--bg-2);"><div class="card-meta">From Slack: ${esc(draft.senderName || 'message')}</div><div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(draft.description)}</div></div>` : ''}
+          <div class="field">
+            <label>Title</label>
+            <input class="input" id="newTitle" value="${esc(draft?.title || '')}" />
+          </div>
+          <div class="field">
+            <label>Category</label>
+            <select class="select" id="newCategory">
+              <option value="payments">Payments</option>
+              <option value="content">Content</option>
+              <option value="other" selected>Other</option>
+            </select>
+          </div>
+          <div id="categoryFields"></div>
+          <div class="field">
+            <label>Description</label>
+            <textarea class="textarea" id="newDescription">${esc(draft?.description || '')}</textarea>
+          </div>
+          <div class="field">
+            <label>Approval path</label>
+            <div class="help" style="margin-top: 4px;">Each approver acts in order. Path editors (dept heads / C-level / admin) can change it later.</div>
+            <div class="step-builder" id="stepBuilder">
+              ${stepBuilderRowHTML('', 1)}
+            </div>
+            <button class="btn" id="addStep">+ Add step</button>
+          </div>
+          <div class="field">
+            <label>Attachments (optional)</label>
+            <input type="file" id="newFiles" multiple />
+            <div class="help">Files attach after the task is created.</div>
+          </div>
+          <div class="error" id="newError" style="display:none;"></div>
+          <div class="modal-footer">
+            <button class="btn" id="cancelNew">Cancel</button>
+            <button class="btn btn-primary" id="submitNew">Submit for approval</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderCategoryFields(category) {
+    if (category === 'payments') return `
+      <div class="grid grid-2">
+        <div class="field"><label>Amount</label><input class="input" id="fAmount" type="number" step="0.01" /></div>
+        <div class="field"><label>Currency</label><select class="select" id="fCurrency">
+          <option>AED</option><option>USD</option><option>EUR</option><option>GBP</option>
+        </select></div>
+      </div>
+      <div class="field"><label>Vendor / Recipient</label><input class="input" id="fVendor" /></div>
+      <div class="field"><label>Purpose</label><input class="input" id="fPurpose" /></div>
+      <div class="field"><label>Due date (optional)</label><input class="input" id="fDueDate" type="date" /></div>`;
+    if (category === 'content') return `<div class="field"><label>Link (URL)</label><input class="input" id="fLink" /></div>`;
+    return '';
+  }
+
+  function gatherCategoryFields(category) {
+    if (category === 'payments') {
+      return {
+        amount: document.getElementById('fAmount').value || null,
+        currency: document.getElementById('fCurrency').value,
+        vendor: document.getElementById('fVendor').value.trim(),
+        purpose: document.getElementById('fPurpose').value.trim(),
+        dueDate: document.getElementById('fDueDate').value || null,
+      };
+    }
+    if (category === 'content') {
+      return { link: document.getElementById('fLink').value.trim() };
+    }
+    return {};
+  }
+
+  // ─── Drawer (profile) ───
+  let _connectInfo = {};
+  function renderDrawer() {
+    const u = state.user;
+    return `
+      <div class="drawer">
+        <div style="display:flex; align-items:center; justify-content: space-between; margin-bottom: 18px;">
+          <h2>Profile</h2>
+          <button class="close" id="closeDrawer" style="background:transparent;border:none;color:var(--text-dim);font-size:24px;cursor:pointer">×</button>
+        </div>
+
+        <div class="drawer-section">
+          <h3>Account</h3>
+          <div class="kv">
+            <div class="k">Name</div><div>${esc(u.name)}</div>
+            <div class="k">Email</div><div>${esc(u.email)}</div>
+            <div class="k">Role</div><div>${roleLabel(u.role)}</div>
+          </div>
+        </div>
+
+        <div class="drawer-section">
+          <h3>Change passcode</h3>
+          <div class="field"><label>Current passcode</label><input class="input" type="password" id="pcCur" maxlength="8" inputmode="numeric" /></div>
+          <div class="field"><label>New passcode (4–8 digits)</label><input class="input" type="password" id="pcNew" maxlength="8" inputmode="numeric" /></div>
+          <button class="btn btn-primary" id="pcSave">Save passcode</button>
+          <div id="pcMsg" style="margin-top: 8px;"></div>
+        </div>
+
+        <div class="drawer-section">
+          <h3>Slack</h3>
+          ${u.slackUserId ? `
+            <div class="card-meta">Linked as <b>${esc(u.slackUserId)}</b></div>
+            <button class="btn btn-danger" id="slackUnlink" style="margin-top: 10px;">Disconnect</button>
+          ` : `
+            <p class="card-meta">Generate a code, then DM it to the approve.mira Slack bot.</p>
+            <button class="btn" id="slackConnect">Generate code</button>
+            ${_connectInfo.slackCode ? `<div style="margin-top: 12px;"><div class="copy-pill" id="copySlack">${_connectInfo.slackCode} <span style="color: var(--text-dim)">tap to copy</span></div></div>` : ''}
+          `}
+        </div>
+
+        <div class="drawer-section">
+          <h3>Telegram</h3>
+          ${u.telegramChatId ? `
+            <div class="card-meta">Linked (chat ID <span class="mono">${esc(u.telegramChatId)}</span>)</div>
+            <button class="btn btn-danger" id="tgUnlink" style="margin-top: 10px;">Disconnect</button>
+          ` : `
+            <p class="card-meta">Generate a deep link, open it in Telegram to link your account.</p>
+            <button class="btn" id="tgConnect">Generate link</button>
+            ${_connectInfo.tgLink ? `<div style="margin-top: 12px;"><a class="btn btn-primary" href="${esc(_connectInfo.tgLink)}" target="_blank">Open in Telegram</a></div>` : (_connectInfo.tgCode ? `<div style="margin-top: 12px;"><div class="copy-pill">${esc(_connectInfo.tgCode)}</div><div class="card-meta" style="margin-top: 6px;">Set TELEGRAM_BOT_USERNAME env var to get a one-click deep link.</div></div>` : '')}
+          `}
+        </div>
+
+        <div class="drawer-section">
+          <h3>WhatsApp</h3>
+          <p class="card-meta">Coming in a later version.</p>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <button class="btn btn-danger" id="logoutBtn" style="width:100%;">Sign out</button>
+        </div>
+      </div>`;
+  }
+
+  // ─── Admin tab ───
+  function renderAdmin() {
+    if (state.user.role !== 'admin') return `<div class="error">Admins only.</div>`;
+    const a = state.analytics;
+    return `
+      <div class="grid" style="gap:18px;">
+        <h1 style="margin:0;letter-spacing:-0.4px;">Admin</h1>
+
+        <div class="grid grid-4">
+          <div class="card"><div class="card-meta">Total tasks</div><div style="font-size:28px;font-weight:700">${a?.totals?.tasks ?? '—'}</div></div>
+          <div class="card"><div class="card-meta">Under review</div><div style="font-size:28px;font-weight:700">${a?.totals?.under_review ?? '—'}</div></div>
+          <div class="card"><div class="card-meta">Approved</div><div style="font-size:28px;font-weight:700;color:var(--ok)">${a?.totals?.approved ?? '—'}</div></div>
+          <div class="card"><div class="card-meta">Avg time to approval</div><div style="font-size:28px;font-weight:700">${a ? fmtDuration(a.avgTimeToApprovalMs) : '—'}</div></div>
+        </div>
+
+        <div class="grid grid-2">
+          <div class="card">
+            <h3 style="margin-top:0">Approver speed</h3>
+            ${(a?.approverStats || []).length ? `<table class="table"><thead><tr><th>Approver</th><th>Role</th><th>Decisions</th><th>Avg</th><th>Median</th></tr></thead><tbody>
+              ${a.approverStats.map((s) => `<tr><td>${esc(s.name)}</td><td>${roleLabel(s.role)}</td><td>${s.decisions}</td><td>${fmtDuration(s.avgMs)}</td><td>${fmtDuration(s.medianMs)}</td></tr>`).join('')}
+            </tbody></table>` : '<div class="card-meta">No decisions yet.</div>'}
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0">Currently waiting</h3>
+            ${(a?.pending || []).length ? `<table class="table"><thead><tr><th>Task</th><th>Approver</th><th>Waiting</th></tr></thead><tbody>
+              ${a.pending.map((p) => `<tr><td><a href="#/task/${p.taskId}">${esc(p.title)}</a></td><td>${esc(p.approverName)}</td><td>${fmtDuration(p.waitingMs)}</td></tr>`).join('')}
+            </tbody></table>` : '<div class="card-meta">Nothing pending.</div>'}
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3 style="margin:0">Users (${state.users.length})</h3>
+            <button class="btn btn-primary" id="newUserBtn">+ Add user</button>
+          </div>
+          <table class="table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Department</th><th>Channels</th><th></th></tr></thead><tbody>
+            ${state.users.map((u) => {
+              const dept = state.departments.find((d) => d.id === u.departmentId);
+              const channels = [u.slackUserId && 'Slack', u.telegramChatId && 'Telegram'].filter(Boolean).join(', ') || '—';
+              return `<tr><td><b>${esc(u.name)}</b></td><td>${esc(u.email)}</td><td>${roleLabel(u.role)}</td><td>${esc(dept?.name || '—')}</td><td>${channels}</td>
+                <td class="row-actions"><button class="btn" data-edit-user="${u.id}">Edit</button>${u.id !== state.user.id ? `<button class="btn btn-danger" data-del-user="${u.id}">Delete</button>` : ''}</td></tr>`;
+            }).join('')}
+          </tbody></table>
+        </div>
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3 style="margin:0">Departments (${state.departments.length})</h3>
+            <button class="btn btn-primary" id="newDeptBtn">+ Add department</button>
+          </div>
+          ${state.departments.length ? `<table class="table"><thead><tr><th>Name</th><th>Head</th><th></th></tr></thead><tbody>
+            ${state.departments.map((d) => `<tr><td>${esc(d.name)}</td><td>${esc(userName(d.headUserId))}</td><td class="row-actions"><button class="btn btn-danger" data-del-dept="${d.id}">Delete</button></td></tr>`).join('')}
+          </tbody></table>` : '<div class="card-meta">No departments yet.</div>'}
+        </div>
+      </div>`;
+  }
+
+  function renderAdminUserModal() {
+    const editing = state.editingUserId ? state.users.find((u) => u.id === state.editingUserId) : null;
+    return `
+      <div class="scrim">
+        <div class="modal" style="max-width:480px;">
+          <div class="modal-header">
+            <h2>${editing ? 'Edit user' : 'New user'}</h2>
+            <button class="close" id="closeUserModal">×</button>
+          </div>
+          <div class="field"><label>Name</label><input class="input" id="uName" value="${esc(editing?.name || '')}" /></div>
+          <div class="field"><label>Email</label><input class="input" id="uEmail" value="${esc(editing?.email || '')}" ${editing ? '' : ''}/></div>
+          <div class="grid grid-2">
+            <div class="field"><label>Role</label><select class="select" id="uRole">
+              ${['employee','manager','dept_head','c_level','admin'].map((r) => `<option value="${r}" ${editing?.role === r ? 'selected' : ''}>${roleLabel(r)}</option>`).join('')}
+            </select></div>
+            <div class="field"><label>Department</label><select class="select" id="uDept">
+              <option value="">— none —</option>
+              ${state.departments.map((d) => `<option value="${d.id}" ${editing?.departmentId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+            </select></div>
+          </div>
+          ${editing ? '' : '<div class="field"><label>Initial passcode (4–8 digits, leave blank for random)</label><input class="input" id="uPasscode" inputmode="numeric" maxlength="8" /></div>'}
+          ${editing ? '<div class="field"><label><input type="checkbox" id="uReset" /> Reset passcode to a random 4-digit code</label></div>' : ''}
+          <div class="error" id="uErr" style="display:none;"></div>
+          <div class="modal-footer">
+            <button class="btn" id="cancelUser">Cancel</button>
+            <button class="btn btn-primary" id="saveUser">${editing ? 'Save' : 'Create'}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ─── Binders ───
+  function bindMain() {
+    // Pills (scope + category)
+    document.querySelectorAll('.pill[data-scope]').forEach((el) => {
+      el.onclick = async () => {
+        state.scope = el.dataset.scope;
+        nav('/');
+        await refreshAll();
+        render();
+      };
+    });
+    document.querySelectorAll('.pill[data-cat]').forEach((el) => {
+      el.onclick = () => { state.category = el.dataset.cat; render(); };
+    });
+    const navAdmin = document.getElementById('navAdmin');
+    if (navAdmin) navAdmin.onclick = () => nav('/admin');
+    const backHome = document.getElementById('backHome');
+    if (backHome) backHome.onclick = () => nav('/');
+
+    document.getElementById('fab').onclick = async () => {
+      const r = await api('/api/task-drafts').catch(() => ({ drafts: [] }));
+      state.drafts = r.drafts || [];
+      nav('/new');
+    };
+    document.getElementById('bellBtn').onclick = openInbox;
+    document.getElementById('profileBtn').onclick = () => { state.drawerOpen = true; _connectInfo = {}; render(); };
+
+    const flashOk = document.getElementById('flashOk');
+    if (flashOk) flashOk.onclick = () => { state.flash = null; render(); };
+
+    if (state.modalOpen === 'new') bindNewTaskModal();
+    if (state.modalOpen === 'admin-user') bindAdminUserModal();
+    if (state.drawerOpen) bindDrawer();
+    if (state.route.path === '/admin') bindAdmin();
+    if (state.route.segs[0] === 'task') bindTaskDetail(state.route.segs[1]);
+  }
+
+  function openInbox() {
+    api('/api/notifications').then((r) => {
+      const items = r.items || [];
+      const list = items.length ? items.slice(0, 30).map((n) => `
+        <div class="card" style="margin-bottom:8px; ${n.read ? 'opacity: 0.65' : ''}">
+          <div style="display:flex;justify-content:space-between;">
+            <b>${esc(n.title)}</b>
+            <span class="card-meta">${fmtAgo(n.at)}</span>
+          </div>
+          <div style="margin-top:6px; font-size:13px; white-space:pre-wrap;">${esc(n.body)}</div>
+          ${n.taskId ? `<div style="margin-top:8px;"><a href="#/task/${n.taskId}">Open task →</a></div>` : ''}
+        </div>`).join('') : '<div class="card-meta">Empty.</div>';
+      state.flash = `<h2 style="margin-top:0;">Notifications</h2>${list}`;
+      render();
+      api('/api/notifications', { method: 'POST', body: {} }).then(() => { state.unread = 0; });
+    });
+  }
+
+  function bindDrawer() {
+    document.getElementById('closeDrawer').onclick = () => { state.drawerOpen = false; render(); };
+    document.getElementById('logoutBtn').onclick = logout;
+    document.getElementById('pcSave').onclick = async () => {
+      const cur = document.getElementById('pcCur').value;
+      const nw = document.getElementById('pcNew').value;
+      const msg = document.getElementById('pcMsg');
+      try {
+        await api('/api/passcode', { method: 'POST', body: { currentPasscode: cur, newPasscode: nw } });
+        msg.innerHTML = '<span class="ok">Saved.</span>';
+      } catch (e) { msg.innerHTML = `<span class="error">${esc(e.message)}</span>`; }
+    };
+    const slackBtn = document.getElementById('slackConnect');
+    if (slackBtn) slackBtn.onclick = async () => {
+      try { const r = await api('/api/slack-connect', { method: 'POST' }); _connectInfo.slackCode = r.code; render(); }
+      catch (e) { alert(e.message); }
+    };
+    const slackUnlink = document.getElementById('slackUnlink');
+    if (slackUnlink) slackUnlink.onclick = async () => {
+      await api('/api/slack-connect', { method: 'DELETE' });
+      const me = await api('/api/me'); state.user = me.user; render();
+    };
+    const copySlack = document.getElementById('copySlack');
+    if (copySlack) copySlack.onclick = () => navigator.clipboard.writeText(_connectInfo.slackCode);
+
+    const tgBtn = document.getElementById('tgConnect');
+    if (tgBtn) tgBtn.onclick = async () => {
+      try { const r = await api('/api/telegram-connect', { method: 'POST' }); _connectInfo.tgCode = r.code; _connectInfo.tgLink = r.deepLink; render(); }
+      catch (e) { alert(e.message); }
+    };
+    const tgUnlink = document.getElementById('tgUnlink');
+    if (tgUnlink) tgUnlink.onclick = async () => {
+      await api('/api/telegram-connect', { method: 'DELETE' });
+      const me = await api('/api/me'); state.user = me.user; render();
+    };
+  }
+
+  function bindNewTaskModal() {
+    document.getElementById('closeModal').onclick = () => { state.modalOpen = null; nav('/'); };
+    document.getElementById('cancelNew').onclick = () => { state.modalOpen = null; nav('/'); };
+
+    const catEl = document.getElementById('newCategory');
+    const fieldsEl = document.getElementById('categoryFields');
+    function repaintFields() { fieldsEl.innerHTML = renderCategoryFields(catEl.value); }
+    repaintFields();
+    catEl.onchange = repaintFields;
+
+    document.getElementById('addStep').onclick = () => {
+      const b = document.getElementById('stepBuilder');
+      const idx = b.children.length + 1;
+      const div = document.createElement('div');
+      div.innerHTML = stepBuilderRowHTML('', idx);
+      b.appendChild(div.firstChild);
+      attachRowHandlers(b);
+    };
+    attachRowHandlers(document.getElementById('stepBuilder'));
+
+    document.getElementById('submitNew').onclick = async () => {
+      const title = document.getElementById('newTitle').value.trim();
+      const category = catEl.value;
+      const description = document.getElementById('newDescription').value.trim();
+      const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
+      const fields = gatherCategoryFields(category);
+      fields.description = description;
+      const errEl = document.getElementById('newError');
+      errEl.style.display = 'none';
+      if (!title) { errEl.textContent = 'Title required'; errEl.style.display = 'block'; return; }
+      if (!approverIds.length) { errEl.textContent = 'Add at least one approver'; errEl.style.display = 'block'; return; }
+      try {
+        const draftId = state.route.query.draft;
+        const draft = state.drafts.find((d) => d.id === draftId);
+        const r = await api('/api/tasks', { method: 'POST', body: {
+          title, category, fields, approverIds,
+          source: draft ? 'slack' : 'web',
+          slackMessage: draft?.slackMessage || null,
+        } });
+        // Upload any files
+        const fileInput = document.getElementById('newFiles');
+        if (fileInput.files.length) await uploadFiles(fileInput.files, r.task.id);
+        // Drop the draft
+        if (draftId) await api('/api/task-drafts/' + draftId, { method: 'DELETE' }).catch(() => {});
+        state.modalOpen = null;
+        await refreshAll();
+        nav('/task/' + r.task.id);
+      } catch (e) {
+        errEl.textContent = e.message;
+        errEl.style.display = 'block';
+      }
+    };
+  }
+  function attachRowHandlers(container) {
+    container.querySelectorAll('.rm').forEach((b) => {
+      b.onclick = (e) => {
+        e.preventDefault();
+        const rows = container.querySelectorAll('.step-builder-row');
+        if (rows.length > 1) b.closest('.step-builder-row').remove();
+      };
+    });
+  }
+
+  async function uploadFiles(files, taskId) {
+    const CHUNK = 3 * 1024 * 1024;
+    for (const file of files) {
+      const uploadId = 'up_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK));
+      for (let i = 0; i < totalChunks; i++) {
+        const slice = file.slice(i * CHUNK, (i + 1) * CHUNK);
+        const buf = new Uint8Array(await slice.arrayBuffer());
+        let s = '';
+        for (let j = 0; j < buf.length; j++) s += String.fromCharCode(buf[j]);
+        const base64 = btoa(s);
+        await api('/api/attachments', { method: 'POST', body: { action: 'chunk', uploadId, chunkIndex: i, base64 } });
+      }
+      await api('/api/attachments', { method: 'POST', body: {
+        action: 'finalize', uploadId, totalChunks, name: file.name, mimeType: file.type, size: file.size, taskId,
+      } });
+    }
+  }
+
+  function bindTaskDetail(id) {
+    const approveBtn = document.getElementById('approveBtn');
+    const declineBtn = document.getElementById('declineBtn');
+    const sendBackBtn = document.getElementById('sendBackBtn');
+    const commentEl = () => document.getElementById('actionComment');
+
+    if (approveBtn) approveBtn.onclick = async () => {
+      try {
+        const r = await api('/api/tasks/' + id + '/act', { method: 'POST', body: { action: 'approve', comment: commentEl().value } });
+        _taskCache[id] = { task: r.task, audit: [] };
+        await refreshAll();
+        loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+    if (declineBtn) declineBtn.onclick = async () => {
+      try {
+        const r = await api('/api/tasks/' + id + '/act', { method: 'POST', body: { action: 'decline', comment: commentEl().value } });
+        _taskCache[id] = { task: r.task, audit: [] };
+        await refreshAll();
+        loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+    if (sendBackBtn) sendBackBtn.onclick = async () => {
+      const sel = document.getElementById('sendBackStep');
+      const target = sel ? sel.value : sendBackBtn.dataset.target;
+      if (!target) { alert('Pick a step to send back to'); return; }
+      try {
+        const r = await api('/api/tasks/' + id + '/act', { method: 'POST', body: { action: 'send_back', stepNumber: Number(target), comment: commentEl()?.value || '' } });
+        _taskCache[id] = { task: r.task, audit: [] };
+        await refreshAll();
+        loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+
+    const resubmit = document.getElementById('resubmitBtn');
+    if (resubmit) resubmit.onclick = async () => {
+      try {
+        const r = await api('/api/tasks/' + id + '/resubmit', { method: 'POST' });
+        _taskCache[id] = { task: r.task, audit: [] };
+        await refreshAll();
+        loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+
+    // Upload
+    const upBtn = document.getElementById('uploadBtn');
+    if (upBtn) upBtn.onclick = () => document.getElementById('fileInput').click();
+    const upInput = document.getElementById('fileInput');
+    if (upInput) upInput.onchange = async () => {
+      if (!upInput.files.length) return;
+      try {
+        await uploadFiles(upInput.files, id);
+        await loadTaskDetail(id);
+      } catch (e) { alert(e.message); }
+    };
+
+    // Path editor save
+    const savePath = document.getElementById('savePath');
+    if (savePath) {
+      attachRowHandlers(document.getElementById('stepBuilderEdit'));
+      document.getElementById('addStepEdit').onclick = () => {
+        const b = document.getElementById('stepBuilderEdit');
+        const div = document.createElement('div');
+        div.innerHTML = stepBuilderRowHTML('', b.children.length + 1);
+        b.appendChild(div.firstChild);
+        attachRowHandlers(b);
+      };
+      savePath.onclick = async () => {
+        const approverIds = Array.from(document.querySelectorAll('#stepBuilderEdit .approver-pick')).map((s) => s.value).filter(Boolean);
+        if (!approverIds.length) return alert('Need at least one approver');
+        try {
+          const r = await api('/api/tasks/' + id, { method: 'PATCH', body: { approverIds } });
+          _taskCache[id] = { task: r.task, audit: [] };
+          await refreshAll();
+          loadTaskDetail(id);
+        } catch (e) { alert(e.message); }
+      };
+    }
+  }
+
+  function bindAdmin() {
+    document.getElementById('newUserBtn').onclick = () => { state.editingUserId = null; state.modalOpen = 'admin-user'; render(); };
+    document.getElementById('newDeptBtn').onclick = async () => {
+      const name = prompt('Department name?'); if (!name) return;
+      await api('/api/departments', { method: 'POST', body: { name } });
+      await refreshAll();
+      render();
+    };
+    document.querySelectorAll('[data-edit-user]').forEach((b) => {
+      b.onclick = () => { state.editingUserId = b.dataset.editUser; state.modalOpen = 'admin-user'; render(); };
+    });
+    document.querySelectorAll('[data-del-user]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Delete user?')) return;
+        await api('/api/users/' + b.dataset.delUser, { method: 'DELETE' });
+        await refreshAll();
+        render();
+      };
+    });
+    document.querySelectorAll('[data-del-dept]').forEach((b) => {
+      b.onclick = async () => {
+        if (!confirm('Delete department?')) return;
+        await api('/api/departments/' + b.dataset.delDept, { method: 'DELETE' });
+        await refreshAll();
+        render();
+      };
+    });
+  }
+
+  function bindAdminUserModal() {
+    document.getElementById('closeUserModal').onclick = () => { state.modalOpen = null; render(); };
+    document.getElementById('cancelUser').onclick = () => { state.modalOpen = null; render(); };
+    document.getElementById('saveUser').onclick = async () => {
+      const name = document.getElementById('uName').value.trim();
+      const email = document.getElementById('uEmail').value.trim();
+      const role = document.getElementById('uRole').value;
+      const departmentId = document.getElementById('uDept').value || null;
+      const errEl = document.getElementById('uErr');
+      errEl.style.display = 'none';
+      try {
+        if (state.editingUserId) {
+          const reset = document.getElementById('uReset').checked;
+          const r = await api('/api/users/' + state.editingUserId, { method: 'PATCH', body: { name, email, role, departmentId, resetPasscode: reset } });
+          if (r.newPasscode) {
+            state.modalOpen = null; render();
+            state.flash = `<h2 style="margin-top:0">Passcode reset</h2><p>New passcode for <b>${esc(r.user.name)}</b>:</p><div class="copy-pill" style="font-size: 18px; padding: 10px 16px;">${r.newPasscode}</div><p class="card-meta" style="margin-top: 12px;">Share this once — it won't be shown again.</p>`;
+          } else {
+            state.modalOpen = null;
+          }
+          await refreshAll();
+          render();
+        } else {
+          const passcode = document.getElementById('uPasscode').value.trim();
+          const r = await api('/api/users', { method: 'POST', body: { name, email, role, departmentId, passcode } });
+          state.modalOpen = null;
+          await refreshAll();
+          state.flash = `<h2 style="margin-top:0">User created</h2><p>Initial passcode for <b>${esc(r.user.name)}</b>:</p><div class="copy-pill" style="font-size: 18px; padding: 10px 16px;">${r.initialPasscode}</div><p class="card-meta" style="margin-top: 12px;">Share this once — they can change it in their profile.</p>`;
+          render();
+        }
+      } catch (e) {
+        errEl.textContent = e.message; errEl.style.display = 'block';
+      }
+    };
+  }
+
+  // ─── Go ───
+  boot();
+  </script>
+</body>
+</html>

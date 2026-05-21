@@ -1,0 +1,21 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  node_bundler = "esbuild"
+
+# Larger body for file uploads (payments can ship multi-MB invoices/contracts).
+[functions."attachments"]
+  included_files = []
+
+# Slack interactivity must respond in <3s; the heavy lifting runs in the
+# background function and we keep the public URL stable behind a redirect.
+[[redirects]]
+  from = "/api/slack-interactions"
+  to = "/.netlify/functions/slack-interactions-background"
+  status = 200
+  force = true
