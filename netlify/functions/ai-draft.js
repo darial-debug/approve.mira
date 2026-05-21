@@ -7,8 +7,8 @@ export default async (req) => {
   try {
     if (req.method !== 'POST') return json(405, { error: 'POST only' });
     const me = await requireAuth(req);
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return json(503, { error: 'AI is not configured. Set ANTHROPIC_API_KEY in Netlify env vars.' });
+    if (!process.env.GROQ_API_KEY) {
+      return json(503, { error: 'AI is not configured. Set GROQ_API_KEY in Netlify env vars (get a free key at https://console.groq.com/).' });
     }
     const body = await req.json();
     const messages = Array.isArray(body.messages) ? body.messages : [];

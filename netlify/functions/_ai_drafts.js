@@ -1,6 +1,14 @@
-import Anthropic from '@anthropic-ai/sdk';
+// Groq-powered draft extraction. Uses the OpenAI-compatible Chat Completions API.
+//   - Text-only       → llama-3.3-70b-versatile (fast, great at JSON)
+//   - With image(s)   → llama-3.2-90b-vision-preview (vision-capable)
 
-const anthropic = new Anthropic();
+const GROQ_BASE = 'https://api.groq.com/openai/v1';
+const TEXT_MODEL = 'llama-3.3-70b-versatile';
+const VISION_MODEL = 'llama-3.2-90b-vision-preview';
+
+function cleanEnv(v) {
+  return (v || '').trim().replace(/^["']+|["']+$/g, '').trim();
+}
 
 function buildSystemPrompt({ requester, allUsers, allProjects = [], source = 'app' }) {
   const teamList = allUsers
@@ -39,68 +47,84 @@ Payment types (paymentType field):
 Your job:
 1. Read the user's description (may include images).
 2. If something critical is missing, ask ONE concise clarifying question — only if it really matters. For payments: amount + currency + which project are usually critical. For content: a link or summary is usually critical. Skip the question if you can reasonably infer.
-3. Once you have enough, draft ONE approval request with:
-   - title: concise, action-oriented
-   - category: payments | content | other
-   - fields (depends on category — see schemas below)
-   - suggestedApproverNames: ordered list of approvers from the team. 2–3 max usually. Order matters: first → last. If unsure, leave empty.
+3. Once you have enough, draft ONE approval request.
 
-Field schemas:
-- payments: { paymentType: "payment"|"refund"|"postpayment", amount: number, currency: "AED"|"USD"|"EUR"|"GBP", vendor: string, purpose: string, projectName: "exact project name from list, or empty", dueDate: "YYYY-MM-DD"|null, description: string }
-- content:  { projectName: string, link: string, description: string }
-- other:    { projectName: string, description: string }
-
-Always respond with ONLY JSON (no markdown, no preamble).
+Respond with ONLY valid JSON (no markdown fences, no preamble).
 When asking a clarifying question:
-{ "needsMoreInfo": true, "question": "one specific friendly question", "proposed": null }
+{"needsMoreInfo": true, "question": "one specific friendly question", "proposed": null}
 When ready:
 {
   "needsMoreInfo": false,
   "question": null,
   "proposed": {
-    "title": "...",
+    "title": "concise action-oriented title",
     "category": "payments|content|other",
-    "fields": { ... },
+    "fields": {
+      "paymentType": "payment|refund|postpayment (only for payments)",
+      "amount": number_or_null,
+      "currency": "AED|USD|EUR|GBP (only for payments)",
+      "vendor": "string (only for payments)",
+      "purpose": "string (only for payments)",
+      "link": "URL (only for content)",
+      "projectName": "exact project name from list above, or empty",
+      "dueDate": "YYYY-MM-DD or null",
+      "description": "context details"
+    },
     "suggestedApproverNames": ["Name1", "Name2"]
   }
 }`;
 }
 
 export async function draftApproval({ messages, images = [], requester, allUsers, allProjects = [], source = 'app' }) {
+  const apiKey = cleanEnv(process.env.GROQ_API_KEY);
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+
   const systemPrompt = buildSystemPrompt({ requester, allUsers, allProjects, source });
+  const hasImages = images.length > 0;
+  const model = hasImages ? VISION_MODEL : TEXT_MODEL;
 
-  const claudeMessages = messages.map((m) => ({ role: m.role, content: m.content }));
-
-  // Splice images into the latest user turn if passed separately.
-  if (images.length && claudeMessages.length) {
-    const lastIdx = claudeMessages.length - 1;
-    if (claudeMessages[lastIdx].role === 'user') {
-      const existing = claudeMessages[lastIdx].content;
-      const textPart = typeof existing === 'string'
-        ? existing
-        : (Array.isArray(existing) ? existing.find((b) => b.type === 'text')?.text || '' : '');
-      const blocks = [];
+  // Build OpenAI-compatible messages.
+  const openaiMessages = [{ role: 'system', content: systemPrompt }];
+  messages.forEach((m, idx) => {
+    const isLast = idx === messages.length - 1;
+    const textPart = typeof m.content === 'string'
+      ? m.content
+      : (Array.isArray(m.content) ? m.content.find((b) => b.type === 'text')?.text || '' : '');
+    if (isLast && hasImages && m.role === 'user') {
+      const blocks = [{ type: 'text', text: textPart || 'Draft an approval from these images.' }];
       images.forEach((img) => {
         blocks.push({
-          type: 'image',
-          source: { type: 'base64', media_type: img.mediaType || 'image/jpeg', data: img.base64 },
+          type: 'image_url',
+          image_url: { url: `data:${img.mediaType || 'image/jpeg'};base64,${img.base64}` },
         });
       });
-      blocks.push({ type: 'text', text: textPart || 'Draft an approval from these.' });
-      claudeMessages[lastIdx].content = blocks;
+      openaiMessages.push({ role: 'user', content: blocks });
+    } else {
+      openaiMessages.push({ role: m.role, content: textPart });
     }
-  }
-
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1500,
-    system: systemPrompt,
-    messages: claudeMessages,
   });
 
-  const textBlock = response.content.find((c) => c.type === 'text');
-  if (!textBlock) throw new Error('No text in AI response');
-  let clean = textBlock.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  // Vision model on Groq doesn't accept json_object response_format; text model does.
+  const body = {
+    model,
+    messages: openaiMessages,
+    max_tokens: 1500,
+    temperature: 0.3,
+  };
+  if (!hasImages) body.response_format = { type: 'json_object' };
+
+  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data?.error?.message || data?.error || JSON.stringify(data);
+    throw new Error(`Groq returned ${res.status}: ${detail}`);
+  }
+  const raw = data.choices?.[0]?.message?.content || '';
+  const clean = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
 
   let parsed;
   try {
@@ -112,19 +136,14 @@ export async function draftApproval({ messages, images = [], requester, allUsers
   // Map suggested approver names → ids so the UI can pre-fill the path picker.
   if (parsed.proposed && Array.isArray(parsed.proposed.suggestedApproverNames)) {
     parsed.proposed.suggestedApproverIds = parsed.proposed.suggestedApproverNames
-      .map((name) => {
-        const u = allUsers.find((x) => x.name.toLowerCase() === name.toLowerCase());
-        return u?.id;
-      })
+      .map((name) => allUsers.find((x) => x.name.toLowerCase() === name.toLowerCase())?.id)
       .filter(Boolean);
   }
 
-  // Resolve AI's projectName → projectId so the UI can pre-select it.
+  // Resolve AI's projectName → projectId so the UI can pre-select the dropdown.
   if (parsed.proposed?.fields?.projectName) {
     const match = allProjects.find((p) => p.name.toLowerCase() === parsed.proposed.fields.projectName.toLowerCase());
-    if (match) {
-      parsed.proposed.fields.projectId = match.id;
-    }
+    if (match) parsed.proposed.fields.projectId = match.id;
   }
 
   return parsed;
