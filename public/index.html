@@ -112,7 +112,9 @@
     .btn-danger:hover { background: rgba(225,85,85,0.08); }
     .btn-ghost { background: transparent; box-shadow: none; }
     .btn-ghost:hover { background: var(--bg-3); box-shadow: none; transform: none; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 1; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-primary:disabled { background: var(--bg-3); color: var(--text-dim); border: 1px solid var(--border); font-weight: 500; }
+    .btn:not(.btn-primary):disabled { background: var(--card-2); color: var(--text-faint); }
     .fab {
       position: fixed; right: 40px; bottom: 40px;
       width: 60px; height: 60px; border-radius: 50%;
@@ -305,6 +307,60 @@
     .chat-bubble.ai .label { color: var(--accent); font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
     .new-page-header { margin-bottom: 20px; }
     .new-page-header h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.4px; }
+    .workflow-steps {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px;
+    }
+    .workflow-step {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
+      background: var(--bg-2); color: var(--text-dim); box-shadow: var(--shadow-card);
+    }
+    .workflow-step .num {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--bg-3);
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .workflow-step.active { background: var(--dark-card); color: var(--bg-2); }
+    .workflow-step.active .num { background: var(--accent); color: #0a0b0c; }
+    .workflow-step.done { color: var(--ok); }
+    .workflow-step.done .num { background: rgba(59,169,116,0.2); color: var(--ok); }
+    .form-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-dim); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .form-section-title:first-of-type { margin-top: 0; }
+    .form-actions {
+      margin-top: 28px; padding: 20px 22px;
+      background: var(--dark-card); border-radius: var(--radius-sm);
+      color: var(--bg-2);
+    }
+    .form-actions .actions-row {
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
+    }
+    .form-actions .actions-hint {
+      flex: 1 1 220px; margin: 0; font-size: 13px; line-height: 1.5; color: #b8bcc2;
+    }
+    .form-actions .actions-hint strong { color: var(--accent); font-weight: 600; }
+    .form-actions .btn { background: var(--bg-2); color: var(--text); }
+    .form-actions .btn:hover:not(:disabled) { background: #fff; }
+    .form-actions .btn-primary:not(:disabled) {
+      background: var(--accent); color: #0a0b0c; font-weight: 700;
+      padding: 12px 26px; font-size: 14px; min-width: 200px;
+    }
+    .form-actions .btn-primary:disabled {
+      background: #2a2d31; color: #6b7076; border: 1px solid #3a3f45;
+    }
+    .submit-status {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    }
+    .submit-status.locked { background: #2a2d31; color: #9aa0a6; }
+    .submit-status.ready { background: rgba(217,240,58,0.15); color: var(--accent); }
+    .ai-checking {
+      text-align: center; padding: 28px 16px;
+      background: var(--card-2); border-radius: var(--radius-sm); margin: 16px 0;
+    }
+    .ai-feedback b { font-size: 13px; display: block; margin-bottom: 4px; }
+    .ai-feedback ul { margin: 0; line-height: 1.55; color: var(--text); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -750,7 +806,7 @@
           <div class="mode-card" id="pickManual">
             <div class="mode-icon">✎</div>
             <h3>Fill in yourself</h3>
-            <p>Enter all fields, attach files, then AI checks your draft — tells you what’s required and what to add.</p>
+            <p>Enter all fields, then AI checks your draft — tells you what’s required and what to add.</p>
           </div>
           <div class="mode-card" id="pickAI">
             <div class="mode-icon">✦</div>
@@ -807,7 +863,13 @@
         `}
         ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
         <div class="row-actions" style="margin-top: 16px;">
-          ${_ai.phase !== 'thinking' ? `<button class="btn btn-primary" id="aiSubmit">${_ai.messages.length ? 'Send reply' : 'Start conversation'}</button>` : ''}
+          ${_ai.phase !== 'thinking' ? `
+        <div class="form-actions" style="margin-top:20px;">
+          <div class="actions-row">
+            <p class="actions-hint">${_ai.phase === 'ask' ? 'Answer the question, then send your reply.' : 'Describe the request — attach files or dictate if helpful.'}</p>
+            <button class="btn btn-primary" id="aiSubmit">${_ai.messages.length ? 'Send reply' : 'Start conversation'}</button>
+          </div>
+        </div>` : ''}
         </div>
       </div>`;
   }
@@ -856,23 +918,42 @@
         </div>
         ${_ai.files.length ? `<div class="field"><label>Attachments</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span></div>`).join('')}</div>` : ''}
         ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
-        <div class="row-actions" style="margin-top:16px;">
-          <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
+        <div class="form-actions">
+          <div class="actions-row">
+            <p class="actions-hint"><strong>Almost done.</strong> Edit the draft if needed, then submit.</p>
+            <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
+          </div>
         </div>
+      </div>`;
+  }
+
+  function renderManualWorkflowSteps() {
+    const fb = _manual.feedback;
+    const step1 = fb ? 'done' : 'active';
+    const step2 = !fb ? '' : (fb.ready ? 'done' : 'active');
+    const step3 = fb?.ready ? 'active' : '';
+    return `
+      <div class="workflow-steps">
+        <span class="workflow-step ${step1}"><span class="num">1</span> Fill in details</span>
+        <span class="workflow-step ${step2}"><span class="num">2</span> AI check</span>
+        <span class="workflow-step ${step3}"><span class="num">3</span> Submit</span>
       </div>`;
   }
 
   function renderNewManualPage() {
     const fb = _manual.feedback;
+    const canSubmit = !!fb?.ready;
     return `
       <div class="new-page-header card-row">
         <div style="flex:1;">
           <h1>Fill in yourself</h1>
-          <p class="card-meta">Complete the form, then run an AI check before submitting.</p>
+          <p class="card-meta">Complete every field, run AI check, then submit when marked ready.</p>
         </div>
         <button class="btn btn-ghost" id="backToModePick">← Change method</button>
       </div>
       <div class="card">
+        ${renderManualWorkflowSteps()}
+        <div class="form-section-title">Request</div>
         <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" /></div>
         <div class="field"><label>Category</label>
           <select class="select" id="newCategory">
@@ -883,32 +964,41 @@
         </div>
         <div id="categoryFields"></div>
         <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="4" placeholder="Context, background, anything approvers should know"></textarea></div>
-        <div class="field"><label>Approval path</label>
-          <div class="step-builder" id="stepBuilder">${stepBuilderRowHTML('', 1)}</div>
-          <button class="btn" id="addStep" style="margin-top:8px;">+ Add step</button>
-        </div>
-        ${_manual.checking ? `<div style="text-align:center;padding:20px;"><span class="spin"></span><div class="card-meta" style="margin-top:8px;">AI is reviewing your draft…</div></div>` : ''}
+        <div class="form-section-title">Approval path</div>
+        <div class="step-builder" id="stepBuilder">${stepBuilderRowHTML('', 1)}</div>
+        <button class="btn" id="addStep" style="margin-top:10px;">+ Add approver step</button>
 
-        ${fb && ! _manual.checking ? `
-          ${fb.required?.length ? `<div class="ai-feedback required"><b>Must add</b><ul style="margin:8px 0 0;padding-left:18px;">${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
-          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Suggestions</b><ul style="margin:8px 0 0;padding-left:18px;">${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
-          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>Ready to submit</b> — all required fields are complete. Re-run check after any edits.</div>` : ''}
+        ${_manual.checking ? `<div class="ai-checking"><span class="spin"></span><div class="card-meta" style="margin-top:10px;">AI is reviewing your draft…</div></div>` : ''}
+
+        ${fb && !_manual.checking ? `
+          <div class="form-section-title">AI review</div>
+          ${fb.required?.length ? `<div class="ai-feedback required"><b>Must add</b><ul>${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Suggestions</b><ul>${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>Ready to submit</b>All required fields passed. Re-run check if you change anything.</div>` : ''}
           ${fb.question ? `
             <div class="ai-feedback" style="border-left:4px solid var(--accent);">
-              <b>AI asks</b><p style="margin:8px 0 0;">${esc(fb.question)}</p>
+              <b>AI asks</b><p style="margin:8px 0 0;font-size:13px;">${esc(fb.question)}</p>
               <div class="field" style="margin-top:12px;margin-bottom:0;">
-                <textarea class="textarea" id="validateReply" rows="2" placeholder="Your answer (optional)">${esc(_manual.validateReply)}</textarea>
+                <label>Your answer</label>
+                <textarea class="textarea" id="validateReply" rows="2" placeholder="Optional — then run Check with AI again">${esc(_manual.validateReply)}</textarea>
               </div>
             </div>` : ''}
         ` : ''}
 
-        ${_manual.error ? `<div class="error">${esc(_manual.error)}</div>` : ''}
+        ${_manual.error ? `<div class="error" style="margin-top:14px;">${esc(_manual.error)}</div>` : ''}
 
-        <div class="row-actions" style="margin-top:16px; flex-wrap:wrap;">
-          <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
-          <button class="btn btn-primary" id="submitManual" ${fb?.ready ? '' : 'disabled title="Run AI check — all required items must pass before submit"'}>Submit for approval</button>
+        <div class="form-actions">
+          <div class="actions-row">
+            <p class="actions-hint">${canSubmit
+              ? '<strong>Ready.</strong> Submit sends this into the approval flow.'
+              : fb
+                ? 'Fix <strong>Must add</strong> items above, then <strong>Check with AI</strong> again.'
+                : 'Fill in the form, then <strong>Check with AI</strong> before you can submit.'}</p>
+            <span class="submit-status ${canSubmit ? 'ready' : 'locked'}">${canSubmit ? '✓ Ready' : 'Submit locked'}</span>
+            <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
+            <button class="btn btn-primary" id="submitManual" ${canSubmit ? '' : 'disabled'}>Submit for approval</button>
+          </div>
         </div>
-        ${!fb ? `<p class="help">Fill in the form, then use <b>Check with AI</b>. Submit is only available when AI marks the draft as ready.</p>` : ''}
       </div>`;
   }
 
