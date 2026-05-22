@@ -1864,9 +1864,17 @@
     _manual.checking = true;
     render();
     try {
+      // Resolve business so AI sees the NAME ("Mira Dev"), not the opaque ID.
+      const enriched = { ...draft, fields: { ...draft.fields } };
+      if (draft.fields?.projectId) {
+        const p = state.projects.find((x) => x.id === draft.fields.projectId);
+        if (p) enriched.fields.business = p.name;
+      } else if (draft.fields?.projectName) {
+        enriched.fields.business = draft.fields.projectName;
+      }
       const reply = (document.getElementById('validateReply')?.value || '').trim();
-      if (reply) draft.fields.description = (draft.fields.description ? draft.fields.description + '\n\n' : '') + reply;
-      const r = await api('/api/ai-draft', { method: 'POST', body: { mode: 'validate', draft } });
+      if (reply) enriched.fields.description = (enriched.fields.description ? enriched.fields.description + '\n\n' : '') + reply;
+      const r = await api('/api/ai-draft', { method: 'POST', body: { mode: 'validate', draft: enriched } });
       _manual.feedback = r;
       _manual.validateReply = '';
     } catch (e) {
