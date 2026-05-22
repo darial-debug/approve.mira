@@ -1603,7 +1603,8 @@
       bindProjectField();
       if (prefill && catEl.value === prefill.category) {
         const f = prefill.fields || {};
-        if (f.paymentType) document.getElementById('fPaymentType')?.value = f.paymentType;
+        const ptEl = document.getElementById('fPaymentType');
+        if (f.paymentType && ptEl) ptEl.value = f.paymentType;
         if (f.amount != null) document.getElementById('fAmount').value = f.amount;
         if (f.currency) document.getElementById('fCurrency').value = f.currency;
         if (f.vendor) document.getElementById('fVendor').value = f.vendor;
