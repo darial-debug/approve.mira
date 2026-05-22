@@ -37,7 +37,7 @@ export default async (req) => {
       }
 
       if (body.action === 'finalize') {
-        const { uploadId, totalChunks, name, mimeType, taskId, size } = body;
+        const { uploadId, totalChunks, name, mimeType, taskId, size, kind } = body;
         if (!uploadId || !totalChunks) return json(400, { error: 'uploadId, totalChunks required' });
 
         const parts = [];
@@ -60,6 +60,7 @@ export default async (req) => {
           name: (name || 'file').slice(0, 200),
           mimeType: mimeType || 'application/octet-stream',
           size: size || fullBuffer.length,
+          kind: ['invoice', 'pop', 'proof_of_transfer', 'additional'].includes(kind) ? kind : 'additional',
           uploadedBy: me.id,
           uploadedByName: me.name,
           uploadedAt: new Date().toISOString(),
