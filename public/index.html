@@ -361,6 +361,60 @@
     }
     .ai-feedback b { font-size: 13px; display: block; margin-bottom: 4px; }
     .ai-feedback ul { margin: 0; line-height: 1.55; color: var(--text); font-size: 13px; }
+
+    /* ── Task list summary + cards ── */
+    .list-summary {
+      display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 24px;
+      margin-bottom: 16px; padding: 18px 22px;
+      background: var(--dark-card); color: var(--bg-2); border-radius: var(--radius-sm);
+    }
+    .list-summary .count { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+    .list-summary .count span { font-size: 14px; font-weight: 500; color: #9aa0a6; margin-left: 6px; }
+    .list-summary .totals { font-size: 15px; font-weight: 600; color: var(--accent); }
+    .list-summary .totals-label { font-size: 12px; color: #9aa0a6; font-weight: 500; margin-right: 8px; }
+    .task-card {
+      display: flex; align-items: stretch; gap: 0;
+      padding: 0; overflow: hidden;
+    }
+    .task-card-main {
+      flex: 1; min-width: 0; padding: 18px 20px; cursor: pointer;
+    }
+    .task-card-main:hover { background: var(--card-2); }
+    .task-card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .task-card-tags .chip { font-size: 10px; padding: 4px 10px; }
+    .task-card-title { font-size: 17px; font-weight: 600; letter-spacing: -0.2px; margin-bottom: 6px; line-height: 1.3; }
+    .task-card-desc {
+      font-size: 13px; color: var(--text-dim); line-height: 1.45;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .task-card-side {
+      flex: 0 0 auto; display: flex; flex-direction: column;
+      align-items: flex-end; justify-content: center; gap: 12px;
+      padding: 18px 20px; min-width: 160px;
+      background: var(--card-2); border-left: 1px solid var(--border);
+    }
+    .task-card-amount {
+      font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1;
+      text-align: right; color: var(--text);
+    }
+    .task-card-amount .cur { font-size: 14px; font-weight: 600; color: var(--text-dim); margin-left: 4px; }
+    .task-card-amount.empty { font-size: 14px; font-weight: 500; color: var(--text-faint); }
+    .btn-approve {
+      padding: 14px 28px; border-radius: 999px; border: none;
+      background: var(--accent); color: #0a0b0c; font-weight: 700; font-size: 15px;
+      cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-card);
+      transition: all 0.15s ease;
+    }
+    .btn-approve:hover { background: var(--accent-dim); transform: translateY(-1px); box-shadow: var(--shadow-hover); }
+    .btn-approve:disabled { opacity: 0.6; cursor: wait; transform: none; }
+    @media (max-width: 720px) {
+      .task-card { flex-direction: column; }
+      .task-card-side {
+        flex-direction: row; align-items: center; justify-content: space-between;
+        border-left: none; border-top: 1px solid var(--border); width: 100%;
+      }
+      .task-card-amount { text-align: left; }
+    }
   </style>
 </head>
 <body>
@@ -498,6 +552,68 @@
     if (t.status === 'awaiting_transfer') return `<span class="chip chip-yellow" style="background: var(--warn); color: #1a1a1a;">Awaiting transfer</span>`;
     if (t.status === 'transferred') return `<span class="chip chip-green">Transferred ✓</span>`;
     return `<span class="chip chip-yellow">Under review</span>`;
+  }
+
+  const CLOSED_STATUSES = new Set(['approved', 'declined', 'transferred']);
+  function isTaskClosed(t) { return CLOSED_STATUSES.has(t.status); }
+
+  function submitterDeptName(t) {
+    const u = userById(t.submitterId);
+    if (!u?.departmentId) return '';
+    return state.departments.find((d) => d.id === u.departmentId)?.name || '';
+  }
+
+  function fmtHoursWaiting(t) {
+    const iso = t.updatedAt || t.createdAt;
+    if (!iso || isTaskClosed(t)) return '';
+    const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+    if (h < 1) return '<1h waiting';
+    if (h < 24) return `${Math.floor(h)}h waiting`;
+    return `${Math.floor(h / 24)}d waiting`;
+  }
+
+  function currentStageLabel(t) {
+    if (isTaskClosed(t)) return '';
+    if (t.status === 'awaiting_transfer') return 'Finance · transfer';
+    const step = t.steps.find((s) => s.status === 'pending');
+    if (!step) return t.status === 'under_review' ? 'Under review' : '';
+    const who = step.approverId === state.user?.id ? 'You' : userName(step.approverId);
+    return `Step ${step.stepNumber}/${t.steps.length} · ${who}`;
+  }
+
+  function taskDescription(t) {
+    const d = (t.fields?.description || t.fields?.purpose || '').trim();
+    return d || 'No description';
+  }
+
+  function computeListSummary(tasks) {
+    const totals = {};
+    let paymentCount = 0;
+    tasks.forEach((t) => {
+      if (t.category === 'payments' && t.fields?.amount != null) {
+        const n = Number(t.fields.amount);
+        if (Number.isFinite(n)) {
+          const cur = t.fields.currency || '—';
+          totals[cur] = (totals[cur] || 0) + n;
+          paymentCount += 1;
+        }
+      }
+    });
+    const totalsStr = Object.entries(totals)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([cur, sum]) => `${sum.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`)
+      .join(' · ');
+    return { count: tasks.length, totalsStr, paymentCount };
+  }
+
+  function renderListSummary(tasks) {
+    const { count, totalsStr } = computeListSummary(tasks);
+    const nLabel = count === 1 ? 'request' : 'requests';
+    return `
+      <div class="list-summary">
+        <div class="count">${count}<span>${nLabel}</span></div>
+        ${totalsStr ? `<div class="totals"><span class="totals-label">Total</span>${esc(totalsStr)}</div>` : ''}
+      </div>`;
   }
 
   // ─── Boot ───
@@ -758,6 +874,7 @@
       html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Open the <b>New</b> tab to create an approval, or send a message from Slack.</p></div>`;
       return html;
     }
+    html += renderListSummary(filteredTasks);
     html += `<div class="grid" style="gap: 12px;">${filteredTasks.map((t) => renderTaskCard(t)).join('')}</div>`;
     return html;
   }
@@ -1003,27 +1120,39 @@
   }
 
   function renderTaskCard(t) {
-    const submitter = userName(t.submitterId);
     const step = t.steps.find((s) => s.status === 'pending');
-    const stepInfo = t.status === 'awaiting_transfer' ? 'Awaiting Finance' : t.status === 'transferred' ? 'Transferred' : step ? `Step ${step.stepNumber}/${t.steps.length} · ${userName(step.approverId)}` : `${t.steps.length} step${t.steps.length>1?'s':''}`;
-    const amount = t.category === 'payments' && t.fields?.amount ? `<span class="chip chip-dim">${t.fields.amount} ${esc(t.fields.currency || '')}</span>` : '';
-    const pType = t.category === 'payments' && t.fields?.paymentType && t.fields.paymentType !== 'payment' ? `<span class="chip chip-dim">${paymentTypeLabel(t.fields.paymentType)}</span>` : '';
-    const proj = projectLabel(t);
+    const canQuickApprove = t.status === 'under_review' && step?.approverId === state.user?.id;
+    const business = projectLabel(t);
+    const dept = submitterDeptName(t);
+    const waiting = fmtHoursWaiting(t);
+    const stage = currentStageLabel(t);
+    const closed = isTaskClosed(t);
+    const desc = taskDescription(t);
+    const isPayment = t.category === 'payments' && t.fields?.amount != null && Number.isFinite(Number(t.fields.amount));
+    const amountBlock = isPayment
+      ? `<div class="task-card-amount">${Number(t.fields.amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}<span class="cur">${esc(t.fields.currency || '')}</span></div>`
+      : `<div class="task-card-amount empty">${esc(categoryLabel(t.category))}</div>`;
+
+    const tags = [];
+    if (business) tags.push(`<span class="chip chip-dim">${esc(business)}</span>`);
+    if (dept) tags.push(`<span class="chip chip-dim">${esc(dept)}</span>`);
+    if (waiting) tags.push(`<span class="chip chip-yellow">${esc(waiting)}</span>`);
+    if (stage) tags.push(`<span class="chip chip-dim">${esc(stage)}</span>`);
+    if (closed) tags.push(statusChip(t));
+    if (t.category === 'payments' && t.fields?.paymentType && t.fields.paymentType !== 'payment') {
+      tags.push(`<span class="chip chip-dim">${paymentTypeLabel(t.fields.paymentType)}</span>`);
+    }
+
     return `
-      <div class="card card-hover" style="cursor:pointer" onclick="location.hash='#/task/${t.id}'">
-        <div class="card-row">
-          <div style="flex:1; min-width:0;">
-            <div class="card-row" style="gap:10px; margin-bottom: 6px; flex-wrap: wrap;">
-              <span class="chip chip-dim">${categoryLabel(t.category)}</span>
-              ${pType}
-              ${statusChip(t)}
-              ${amount}
-              ${proj ? `<span class="chip chip-dim">📁 ${esc(proj)}</span>` : ''}
-              ${t.source === 'slack' ? '<span class="chip chip-dim">Slack</span>' : ''}
-            </div>
-            <div class="card-title">${esc(t.title)}</div>
-            <div class="card-meta" style="margin-top: 6px;">From ${esc(submitter)} · ${stepInfo} · ${fmtAgo(t.updatedAt || t.createdAt)}</div>
-          </div>
+      <div class="card task-card">
+        <div class="task-card-main" data-open-task="${esc(t.id)}">
+          <div class="task-card-tags">${tags.join('')}</div>
+          <div class="task-card-title">${esc(t.title)}</div>
+          <div class="task-card-desc">${esc(desc)}</div>
+        </div>
+        <div class="task-card-side">
+          ${amountBlock}
+          ${canQuickApprove ? `<button type="button" class="btn-approve" data-quick-approve="${esc(t.id)}">Approve</button>` : ''}
         </div>
       </div>`;
   }
@@ -1550,6 +1679,30 @@
     });
     const clearFiltersBtn = document.getElementById('clearFiltersBtn');
     if (clearFiltersBtn) clearFiltersBtn.onclick = () => { clearFilters(); render(); };
+
+    document.querySelectorAll('[data-open-task]').forEach((el) => {
+      el.onclick = () => { nav('/task/' + el.dataset.openTask); };
+    });
+    document.querySelectorAll('[data-quick-approve]').forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.quickApprove;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          await api('/api/tasks/' + id + '/act', { method: 'POST', body: { action: 'approve', comment: '' } });
+          delete _taskCache[id];
+          await refreshAll();
+          render();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Approve';
+          state.flash = `<h2 style="margin-top:0">Could not approve</h2><p>${esc(err.message)}</p>`;
+          render();
+        }
+      };
+    });
     const navAdmin = document.getElementById('navAdmin');
     if (navAdmin) navAdmin.onclick = () => nav('/admin');
     const backHome = document.getElementById('backHome');
