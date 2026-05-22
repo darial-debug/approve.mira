@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Date range picker — demo</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: #f4f3ee;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    .demo-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .demo-wrap h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #16181b;
+    }
+    .demo-log {
+      font-size: 13px;
+      color: #6b7076;
+      text-align: center;
+      max-width: 360px;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-wrap">
+    <h1>Date range picker</h1>
+    <div id="picker-host"></div>
+    <p class="demo-log" id="log">Select a start date, then an end date.</p>
+  </div>
+
+  <script type="module">
+    import { DateRangePicker } from './components/DateRangePicker.js';
+
+    const log = document.getElementById('log');
+    // June 1–18 matches the reference screenshot
+    const picker = new DateRangePicker(document.getElementById('picker-host'), {
+      showFields: true,
+      fieldsPosition: 'bottom',
+      start: new Date(2026, 5, 1),
+      end: new Date(2026, 5, 18),
+      onChange: ({ start, end }) => {
+        if (!start) {
+          log.textContent = 'Select a start date, then an end date.';
+        } else if (!end) {
+          log.textContent = 'Start set — pick an end date (or click earlier to move start).';
+        } else {
+          log.textContent = `Range: ${start.toLocaleDateString()} → ${end.toLocaleDateString()}`;
+        }
+      },
+    });
+  </script>
+</body>
+</html>

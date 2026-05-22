@@ -1,0 +1,304 @@
+/* DateRangePicker — matches reference calendar design */
+
+.drp {
+  --drp-bg: #ffffff;
+  --drp-text: #111827;
+  --drp-text-muted: #6b7280;
+  --drp-text-weekend: #d1d5db;
+  --drp-start: #93c5fd;
+  --drp-start-text: #ffffff;
+  --drp-strip: #eff6ff;
+  --drp-end: #2563eb;
+  --drp-end-text: #ffffff;
+  --drp-preview-strip: #dbeafe;
+  --drp-nav-bg: #f3f4f6;
+  --drp-cell: 44px;
+  --drp-cap: 8px;
+
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--drp-text);
+  background: var(--drp-bg);
+  padding: 16px 20px 20px;
+  max-width: 340px;
+  width: 100%;
+  user-select: none;
+}
+
+.drp-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.drp-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--drp-text-muted);
+  margin-bottom: 6px;
+}
+
+.drp-field input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: var(--drp-text);
+  font: inherit;
+  pointer-events: none;
+}
+
+/* Header: [spacer] [June ▲▼] [› circle] */
+.drp-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 40px;
+  margin-bottom: 12px;
+}
+
+.drp-month-center {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.drp-month-title {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.3px;
+  color: var(--drp-text);
+}
+
+.drp-month-chevrons {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0;
+  margin-left: 2px;
+}
+
+.drp-chevron-btn {
+  width: 18px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--drp-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.drp-chevron-btn:hover {
+  color: var(--drp-text);
+}
+
+.drp-chevron-btn:focus-visible {
+  outline: 2px solid var(--drp-end);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.drp-next-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--drp-nav-bg);
+  color: #4b5563;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.drp-next-btn:hover {
+  background: #e5e7eb;
+}
+
+.drp-next-btn:focus-visible {
+  outline: 2px solid var(--drp-end);
+  outline-offset: 2px;
+}
+
+.drp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 4px;
+}
+
+.drp-weekday {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--drp-text-muted);
+  padding: 8px 0;
+}
+
+.drp-weekday--weekend {
+  color: var(--drp-text-weekend);
+}
+
+.drp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.drp-day {
+  position: relative;
+  height: var(--drp-cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drp-day--empty {
+  pointer-events: none;
+}
+
+.drp-day-btn {
+  position: relative;
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--drp-cap);
+  background: transparent;
+  color: var(--drp-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drp-day-btn:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.drp-day-btn:focus-visible {
+  outline: 2px solid var(--drp-end);
+  outline-offset: 2px;
+  z-index: 2;
+}
+
+/* Continuous range strip behind day numbers */
+.drp-day::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 36px;
+  z-index: 0;
+  background: transparent;
+}
+
+.drp-day--in-range::before,
+.drp-day--preview::before {
+  background: var(--drp-strip);
+}
+
+.drp-day--preview::before {
+  background: var(--drp-preview-strip);
+}
+
+/* Start/end use solid squares only — no pale strip behind */
+.drp-day--range-start::before,
+.drp-day--range-end::before,
+.drp-day--preview-end::before {
+  background: transparent;
+}
+
+/* Rounded strip caps at week wraps and range edges */
+.drp-day--segment-start::before {
+  border-top-left-radius: var(--drp-cap);
+  border-bottom-left-radius: var(--drp-cap);
+}
+
+.drp-day--segment-end::before {
+  border-top-right-radius: var(--drp-cap);
+  border-bottom-right-radius: var(--drp-cap);
+}
+
+/* Start cell: light blue square, white text */
+.drp-day--start-only .drp-day-btn,
+.drp-day--range-start .drp-day-btn {
+  background: var(--drp-start);
+  color: var(--drp-start-text);
+  font-weight: 600;
+  border-radius: var(--drp-cap);
+}
+
+.drp-day--start-only .drp-day-btn:hover,
+.drp-day--range-start .drp-day-btn:hover {
+  background: #7ab8fc;
+}
+
+/* End cell: solid blue, white text */
+.drp-day--range-end .drp-day-btn,
+.drp-day--preview-end .drp-day-btn {
+  background: var(--drp-end);
+  color: var(--drp-end-text);
+  font-weight: 600;
+  border-radius: var(--drp-cap);
+}
+
+.drp-day--range-end .drp-day-btn:hover,
+.drp-day--preview-end .drp-day-btn:hover {
+  background: #1d4ed8;
+}
+
+/* Middle days: pale strip, dark numbers */
+.drp-day--in-range .drp-day-btn,
+.drp-day--preview .drp-day-btn {
+  border-radius: 0;
+  background: transparent;
+  color: var(--drp-text);
+}
+
+.drp-day--in-range .drp-day-btn:hover,
+.drp-day--preview .drp-day-btn:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+
+/* Single-day range: both caps on one cell */
+.drp-day--range-start.drp-day--range-end::before {
+  border-radius: var(--drp-cap);
+}
+
+.drp-day--range-start.drp-day--range-end .drp-day-btn {
+  background: var(--drp-end);
+  color: var(--drp-end-text);
+}
+
+@media (max-width: 400px) {
+  .drp {
+    padding: 12px 14px 16px;
+    --drp-cell: 40px;
+  }
+
+  .drp-day-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .drp-fields {
+    grid-template-columns: 1fr;
+  }
+}
