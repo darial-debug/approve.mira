@@ -1379,13 +1379,32 @@
     if (!sel) return;
     sel.onchange = () => {
       if (sel.value === '__other') {
-        customInput.style.display = 'block';
-        customInput.focus();
-      } else {
+        if (customInput) {
+          customInput.style.display = 'block';
+          customInput.focus();
+        }
+      } else if (customInput) {
         customInput.style.display = 'none';
         customInput.value = '';
       }
     };
+  }
+
+  // If user typed a custom business name, save it as a project so it appears in
+  // the dropdown next time. Returns updated fields with projectId set.
+  async function resolveProjectInFields(fields) {
+    if (!fields) return fields;
+    if (fields.projectId) return fields;
+    const name = (fields.projectName || '').trim();
+    if (!name) return fields;
+    try {
+      const r = await api('/api/projects', { method: 'POST', body: { name } });
+      return { ...fields, projectId: r.project.id, projectName: r.project.name };
+    } catch (e) {
+      // If creation fails (e.g. permissions, network), keep projectName so the
+      // task at least carries the business name even if it's not in the master list.
+      return fields;
+    }
   }
 
   function bindPaymentTypeField() {
@@ -1876,6 +1895,8 @@
     if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
     _manual.error = null;
     try {
+      // Promote a typed custom business to a saved project so it appears next time.
+      draft.fields = await resolveProjectInFields(draft.fields);
       const r = await api('/api/tasks', { method: 'POST', body: {
         title: draft.title, category: draft.category, fields: draft.fields, approverIds: draft.approverIds, source: 'web',
       } });
@@ -2053,8 +2074,9 @@
       if (!title) { _ai.error = 'Title required'; render(); return; }
       if (!approverIds.length) { _ai.error = 'Add at least one approver'; render(); return; }
       try {
+        const resolvedFields = await resolveProjectInFields(fields);
         const r = await api('/api/tasks', { method: 'POST', body: {
-          title, category, fields, approverIds,
+          title, category, fields: resolvedFields, approverIds,
           source: _ai.sourceDraft ? 'slack' : 'web',
           slackMessage: _ai.sourceDraft?.slackMessage || null,
         } });

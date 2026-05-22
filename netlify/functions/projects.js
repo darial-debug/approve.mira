@@ -16,18 +16,20 @@ export default async (req) => {
       return json(200, { projects });
     }
     if (req.method === 'POST' && !id) {
-      await requireAdmin(req);
+      // Any signed-in user can add a business while filling a form.
+      // If the name already exists (case-insensitive), return that one instead
+      // of erroring — so the New form can call this idempotently.
+      const me = await requireAuth(req);
       const body = await req.json();
       const name = (body.name || '').trim();
       if (!name) return json(400, { error: 'Name required' });
       const projects = await readData('projects', []);
-      if (projects.some((p) => p.name.toLowerCase() === name.toLowerCase())) {
-        return json(409, { error: 'A project with that name already exists' });
-      }
-      const project = { id: newId('p'), name, createdAt: new Date().toISOString() };
+      const existing = projects.find((p) => p.name.toLowerCase() === name.toLowerCase());
+      if (existing) return json(200, { project: existing, existed: true });
+      const project = { id: newId('p'), name, createdAt: new Date().toISOString(), createdBy: me.id };
       projects.push(project);
       await writeData('projects', projects);
-      return json(200, { project });
+      return json(200, { project, existed: false });
     }
     if (req.method === 'PATCH' && id) {
       await requireAdmin(req);
