@@ -866,12 +866,26 @@
     const filteredTasks = applyTaskFilters(state.tasks);
     const drafts = state.drafts || [];
     const scopeHint = { pending: 'Nothing needs your review right now.', submitted: 'No active tasks you created or are involved in.', history: 'No tasks in your history yet.' }[state.scope] || '';
+    const hasAnyTasks = state.tasks.length > 0;
 
-    let html = renderFiltersBar(state.tasks);
+    let html = '';
+
+    // Slack drafts panel on My Queue (For me / Submitted) so they're not buried.
+    if (drafts.length && (state.scope === 'pending' || state.scope === 'submitted')) {
+      html += renderSlackDraftsPanel();
+    }
+
+    // Filters: only show when there's actually something to filter.
+    if (hasAnyTasks) html += renderFiltersBar(state.tasks);
 
     if (!filteredTasks.length) {
       const filterNote = Object.values(state.filters).some(Boolean) ? ' Try adjusting the filters.' : '';
-      html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Open the <b>New</b> tab to create an approval, or send a message from Slack.</p></div>`;
+      html += `
+        <div class="empty">
+          <h3>Nothing here yet</h3>
+          <p>${scopeHint}${filterNote}</p>
+          <button class="btn btn-primary" id="emptyNewBtn" style="margin-top: 14px;">+ New approval</button>
+        </div>`;
       return html;
     }
     html += renderListSummary(filteredTasks);
@@ -1059,17 +1073,15 @@
 
   function renderNewManualPage() {
     const fb = _manual.feedback;
-    const canSubmit = !!fb?.ready;
     return `
       <div class="new-page-header card-row">
         <div style="flex:1;">
           <h1>Fill in yourself</h1>
-          <p class="card-meta">Complete every field, run AI check, then submit when marked ready.</p>
+          <p class="card-meta">Fill the fields and submit. AI check is optional — use it if you want a sanity check first.</p>
         </div>
         <button class="btn btn-ghost" id="backToModePick">← Change method</button>
       </div>
       <div class="card">
-        ${renderManualWorkflowSteps()}
         <div class="form-section-title">Request</div>
         <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" /></div>
         <div class="field"><label>Category</label>
@@ -1085,19 +1097,19 @@
         <div class="step-builder" id="stepBuilder">${stepBuilderRowHTML('', 1)}</div>
         <button class="btn" id="addStep" style="margin-top:10px;">+ Add approver step</button>
 
-        ${_manual.checking ? `<div class="ai-checking"><span class="spin"></span><div class="card-meta" style="margin-top:10px;">AI is reviewing your draft…</div></div>` : ''}
+        ${_manual.checking ? `<div class="ai-checking" style="margin-top: 14px;"><span class="spin"></span><div class="card-meta" style="margin-top:10px;">AI is reviewing your draft…</div></div>` : ''}
 
         ${fb && !_manual.checking ? `
-          <div class="form-section-title">AI review</div>
-          ${fb.required?.length ? `<div class="ai-feedback required"><b>Must add</b><ul>${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
-          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Suggestions</b><ul>${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
-          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>Ready to submit</b>All required fields passed. Re-run check if you change anything.</div>` : ''}
+          <div class="form-section-title">AI review (advisory)</div>
+          ${fb.required?.length ? `<div class="ai-feedback required"><b>AI suggests adding</b><ul>${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Nice-to-haves</b><ul>${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>✓ Looks complete</b> — all critical fields look good.</div>` : ''}
           ${fb.question ? `
             <div class="ai-feedback" style="border-left:4px solid var(--accent);">
               <b>AI asks</b><p style="margin:8px 0 0;font-size:13px;">${esc(fb.question)}</p>
               <div class="field" style="margin-top:12px;margin-bottom:0;">
                 <label>Your answer</label>
-                <textarea class="textarea" id="validateReply" rows="2" placeholder="Optional — then run Check with AI again">${esc(_manual.validateReply)}</textarea>
+                <textarea class="textarea" id="validateReply" rows="2" placeholder="Optional — then re-run Check with AI">${esc(_manual.validateReply)}</textarea>
               </div>
             </div>` : ''}
         ` : ''}
@@ -1106,14 +1118,9 @@
 
         <div class="form-actions">
           <div class="actions-row">
-            <p class="actions-hint">${canSubmit
-              ? '<strong>Ready.</strong> Submit sends this into the approval flow.'
-              : fb
-                ? 'Fix <strong>Must add</strong> items above, then <strong>Check with AI</strong> again.'
-                : 'Fill in the form, then <strong>Check with AI</strong> before you can submit.'}</p>
-            <span class="submit-status ${canSubmit ? 'ready' : 'locked'}">${canSubmit ? '✓ Ready' : 'Submit locked'}</span>
+            <p class="actions-hint">Submit when you're ready. AI check is optional.</p>
             <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
-            <button class="btn btn-primary" id="submitManual" ${canSubmit ? '' : 'disabled'}>Submit for approval</button>
+            <button class="btn btn-primary" id="submitManual">Submit for approval</button>
           </div>
         </div>
       </div>`;
@@ -1739,6 +1746,13 @@
     document.getElementById('bellBtn').onclick = openInbox;
     document.getElementById('profileBtn').onclick = () => { state.drawerOpen = true; _connectInfo = {}; render(); };
 
+    const emptyNewBtn = document.getElementById('emptyNewBtn');
+    if (emptyNewBtn) emptyNewBtn.onclick = () => {
+      state.scope = 'new';
+      state.newCreationMode = null;
+      render();
+    };
+
     const flashOk = document.getElementById('flashOk');
     if (flashOk) flashOk.onclick = () => { state.flash = null; render(); };
 
@@ -1920,11 +1934,6 @@
 
   async function submitManualApproval() {
     const draft = gatherManualDraft();
-    if (!_manual.feedback?.ready) {
-      _manual.error = 'Run “Check with AI” and complete all required items before submitting.';
-      render();
-      return;
-    }
     if (!draft.title) { _manual.error = 'Title required'; render(); return; }
     if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
     _manual.error = null;
