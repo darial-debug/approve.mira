@@ -281,6 +281,30 @@
     .filter-dates-row { display: flex; gap: 8px; }
     .filter-dates-row .input { flex: 1; min-width: 0; }
     .filters-clear { flex: 0 0 auto; align-self: flex-end; margin-left: auto; }
+
+    /* ── NEW tab: creation modes ── */
+    .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    @media (max-width: 700px) { .mode-pick { grid-template-columns: 1fr; } }
+    .mode-card {
+      padding: 28px 24px; border-radius: var(--radius); background: var(--card);
+      box-shadow: var(--shadow-card); cursor: pointer; border: 2px solid transparent;
+      transition: all 0.15s ease; text-align: left;
+    }
+    .mode-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); border-color: var(--accent); }
+    .mode-card h3 { margin: 0 0 8px; font-size: 18px; }
+    .mode-card p { margin: 0; color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+    .mode-card .mode-icon { font-size: 28px; margin-bottom: 12px; }
+    .ai-feedback { background: var(--card-2); border-radius: var(--radius-sm); padding: 16px 18px; margin-bottom: 16px; }
+    .ai-feedback.required { border-left: 4px solid var(--danger); }
+    .ai-feedback.suggestions { border-left: 4px solid var(--warn); }
+    .ai-feedback.ok-panel { border-left: 4px solid var(--ok); background: rgba(59,169,116,0.08); }
+    .ai-chat-thread { max-height: 320px; overflow-y: auto; margin-bottom: 14px; }
+    .chat-bubble { padding: 12px 14px; border-radius: 14px; margin-bottom: 10px; font-size: 13px; max-width: 92%; }
+    .chat-bubble.user { background: var(--card-2); margin-left: auto; }
+    .chat-bubble.ai { background: var(--dark-card); color: var(--bg-2); }
+    .chat-bubble.ai .label { color: var(--accent); font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 6px; }
+    .new-page-header { margin-bottom: 20px; }
+    .new-page-header h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.4px; }
   </style>
 </head>
 <body>
@@ -304,7 +328,8 @@
     pendingCount: 0,
     analytics: null,
     route: parseRoute(),
-    scope: 'pending',
+    scope: 'pending', // pending | submitted | history | new
+    newCreationMode: null, // null | 'manual' | 'ai'
     filters: {
       business: '',
       departmentId: '',
@@ -331,14 +356,16 @@
     if (state.route.path.startsWith('/new')) {
       openNewFromRoute();
     } else {
-      state.modalOpen = null;
       render();
     }
   });
 
   function openNewFromRoute() {
+    state.scope = 'new';
+    state.newCreationMode = 'ai';
     const draftId = state.route.query.draft;
     resetAI();
+    resetManual();
     if (draftId) {
       const draft = (state.drafts || []).find((d) => d.id === draftId);
       if (draft) {
@@ -346,7 +373,13 @@
         _ai.draftId = draft.id;
       }
     }
-    state.modalOpen = 'new';
+    render();
+  }
+
+  function goToNewTab(mode = null) {
+    state.scope = 'new';
+    if (mode) state.newCreationMode = mode;
+    nav('/');
     render();
   }
 
@@ -430,9 +463,10 @@
   }
 
   async function refreshAll() {
-    const scopeParam = state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'history' : state.scope;
+    const scopeParam = state.scope === 'new' ? null
+      : (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'history' : state.scope);
     const [tasks, pendingRes, users, departments, projects, drafts] = await Promise.all([
-      api('/api/tasks?scope=' + scopeParam).catch(() => ({ tasks: [] })),
+      scopeParam ? api('/api/tasks?scope=' + scopeParam).catch(() => ({ tasks: [] })) : Promise.resolve({ tasks: [] }),
       api('/api/tasks?scope=pending').catch(() => ({ tasks: [] })),
       api('/api/users').catch(() => ({ users: [] })),
       api('/api/departments').catch(() => ({ departments: [] })),
@@ -520,8 +554,6 @@
         <div class="canvas">
           ${renderTopbar()}
           ${renderRoute()}
-          <button class="fab" id="fab" title="New approval request">+</button>
-          ${state.modalOpen === 'new' ? renderNewTaskModal() : ''}
           ${state.modalOpen === 'admin-user' ? renderAdminUserModal() : ''}
           ${state.drawerOpen ? renderDrawer() : ''}
           ${state.flash ? `<div class="scrim" id="flashScrim"><div class="modal" style="max-width:420px">${state.flash}<div class="modal-footer"><button class="btn btn-primary" id="flashOk">OK</button></div></div></div>` : ''}
@@ -583,6 +615,7 @@
           <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">For me${pending ? `<span class="badge">${pending}</span>` : ''}</button>
           <button class="pill ${state.scope === 'submitted' ? 'active' : ''}" data-scope="submitted">Submitted</button>
           <button class="pill ${state.scope === 'history' ? 'active' : ''}" data-scope="history">History</button>
+          <button class="pill ${state.scope === 'new' ? 'active' : ''}" data-scope="new">New</button>
           ${isAdmin ? `<button class="pill ${state.route.path === '/admin' ? 'active' : ''}" id="navAdmin">Admin</button>` : ''}
         </div>
         <div class="spacer"></div>
@@ -652,6 +685,7 @@
   function renderRoute() {
     if (state.route.segs[0] === 'task') return renderTaskDetail(state.route.segs[1]);
     if (state.route.path === '/admin') return renderAdmin();
+    if (state.scope === 'new') return renderNewPage();
     return renderHome();
   }
 
@@ -663,44 +697,221 @@
 
     let html = renderFiltersBar(state.tasks);
 
-    html += `
-      <div class="card card-dark" style="margin-bottom: 16px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap;">
-        <div>
-          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Create a new approval</div>
-          <div style="color: #9aa0a6; font-size: 13px;">Describe it in your own words, dictate, or attach files. AI will draft it.</div>
-        </div>
-        <button class="btn btn-primary" id="newApprovalBtn" style="padding: 12px 22px;">+ New approval</button>
-      </div>`;
-
-    if (drafts.length) {
-      html += `
-        <div class="card" style="margin-bottom: 16px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-            <h3 style="margin:0;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Drafts waiting to finish (${drafts.length})</h3>
-          </div>
-          <div class="grid" style="gap: 8px;">
-            ${drafts.map((d) => `
-              <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
-                  <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}${d.slackMessage ? 'Slack' : 'Direct'} · ${fmtAgo(d.createdAt)}</div>
-                </div>
-                <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish →</button>
-                <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
-              </div>
-            `).join('')}
-          </div>
-        </div>`;
-    }
-
     if (!filteredTasks.length) {
       const filterNote = Object.values(state.filters).some(Boolean) ? ' Try adjusting the filters.' : '';
-      html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Click + to create one or send a message from Slack.</p></div>`;
+      html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Open the <b>New</b> tab to create an approval, or send a message from Slack.</p></div>`;
       return html;
     }
     html += `<div class="grid" style="gap: 12px;">${filteredTasks.map((t) => renderTaskCard(t)).join('')}</div>`;
     return html;
   }
+
+  // ─── NEW tab: create approval (manual or AI) ───
+  let _manual = { feedback: null, checking: false, error: null, validateReply: '' };
+  function resetManual() {
+    _manual = { feedback: null, checking: false, error: null, validateReply: '' };
+  }
+  function resetNewPage() {
+    resetAI();
+    resetManual();
+    state.newCreationMode = null;
+  }
+
+  function renderSlackDraftsPanel() {
+    const drafts = state.drafts || [];
+    if (!drafts.length) return '';
+    return `
+      <div class="card" style="margin-bottom: 20px;">
+        <h3 style="margin:0 0 12px;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">From Slack — finish (${drafts.length})</h3>
+        <div class="grid" style="gap: 8px;">
+          ${drafts.map((d) => `
+            <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
+                <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}Slack · ${fmtAgo(d.createdAt)}</div>
+              </div>
+              <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish with AI →</button>
+              <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+
+  function renderNewPage() {
+    if (!state.newCreationMode) {
+      return `
+        <div class="new-page-header">
+          <h1>New approval</h1>
+          <p class="card-meta">Fill in the details yourself, or let AI guide you through a short conversation.</p>
+        </div>
+        ${renderSlackDraftsPanel()}
+        <div class="mode-pick">
+          <div class="mode-card" id="pickManual">
+            <div class="mode-icon">✎</div>
+            <h3>Fill in yourself</h3>
+            <p>Enter all fields, attach files, then AI checks your draft — tells you what’s required and what to add.</p>
+          </div>
+          <div class="mode-card" id="pickAI">
+            <div class="mode-icon">✦</div>
+            <h3>Create with AI</h3>
+            <p>Describe what you need in chat. AI asks questions, then drafts the request for you to review.</p>
+          </div>
+        </div>`;
+    }
+    if (state.newCreationMode === 'ai') return renderNewAIPage();
+    return renderNewManualPage();
+  }
+
+  function renderNewAIPage() {
+    if (_ai.phase === 'review') return renderNewAIReviewSection();
+    return `
+      <div class="new-page-header card-row" style="align-items: flex-start;">
+        <div style="flex:1;">
+          <h1>Create with AI</h1>
+          <p class="card-meta">Answer AI’s questions — it will draft the approval for you.</p>
+        </div>
+        <button class="btn btn-ghost" id="backToModePick">← Change method</button>
+      </div>
+      ${renderSlackDraftsPanel()}
+      <div class="card">
+        ${_ai.sourceDraft ? `<div class="card" style="margin-bottom: 14px; background: var(--card-2);">
+          <div class="card-meta">Slack draft</div>
+          <div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(_ai.sourceDraft.description)}</div>
+        </div>` : ''}
+        ${renderAIChatThread()}
+        ${_ai.phase === 'ask' && _ai.question ? `
+          <div class="chat-bubble ai" style="max-width:100%;">
+            <div class="label">AI asks</div>
+            <div>${esc(_ai.question)}</div>
+          </div>` : ''}
+        ${_ai.phase === 'thinking' ? `
+          <div style="text-align:center; padding: 24px 0;">
+            <span class="spin"></span><div style="margin-top: 10px; color: var(--text-dim);">Thinking…</div>
+          </div>
+        ` : `
+          <div class="field">
+            <label>${_ai.phase === 'ask' ? 'Your reply' : 'Describe the request'}</label>
+            <textarea class="textarea" id="aiInput" rows="4" placeholder="e.g. Pay Adobe $240 USD for Creative Cloud renewal, invoice attached…">${esc(_ai.sourceDraft && !_ai.messages.length ? (_ai.sourceDraft.description || '') : '')}</textarea>
+          </div>
+          <div class="card-row" style="gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+            <button class="btn" id="recordBtn">${_ai.recording ? '⏹ Stop' : '🎤 Dictate'}</button>
+            <button class="btn" id="attachFilesBtn">📎 Files</button>
+            <input type="file" id="aiFileInput" multiple style="display:none;" accept="*/*" />
+            <span class="card-meta">${_ai.files.length ? _ai.files.length + ' file(s)' : ''}${_ai.images.length ? (_ai.files.length ? ' · ' : '') + _ai.images.length + ' image(s) for AI' : ''}</span>
+          </div>
+          ${_ai.files.length ? _ai.files.map((f, i) => `
+            <div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span>
+              <button class="btn-ghost" data-rm-file="${i}" style="padding:2px 6px;color:var(--danger);border:none;background:transparent;cursor:pointer;">×</button>
+            </div>`).join('') : ''}
+        `}
+        ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+        <div class="row-actions" style="margin-top: 16px;">
+          ${_ai.phase !== 'thinking' ? `<button class="btn btn-primary" id="aiSubmit">${_ai.messages.length ? 'Send reply' : 'Start conversation'}</button>` : ''}
+        </div>
+      </div>`;
+  }
+
+  function renderAIChatThread() {
+    const msgs = _ai.messages.filter((m) => m.role === 'user' || (m.role === 'assistant' && _ai.phase !== 'describe'));
+    if (!msgs.length) return '';
+    const turns = [];
+    _ai.messages.forEach((m) => {
+      if (m.role === 'user') {
+        const text = typeof m.content === 'string' ? m.content : '';
+        turns.push(`<div class="chat-bubble user">${esc(text)}</div>`);
+      } else if (m.role === 'assistant') {
+        try {
+          const j = JSON.parse(typeof m.content === 'string' ? m.content : '{}');
+          if (j.question) turns.push(`<div class="chat-bubble ai"><div class="label">AI</div>${esc(j.question)}</div>`);
+        } catch { /* skip */ }
+      }
+    });
+    return turns.length ? `<div class="ai-chat-thread">${turns.join('')}</div>` : '';
+  }
+
+  function renderNewAIReviewSection() {
+    const p = _ai.proposed || {};
+    return `
+      <div class="new-page-header card-row">
+        <div style="flex:1;"><h1>Review & submit</h1><p class="card-meta">AI drafted this. Edit anything, then submit.</p></div>
+        <button class="btn btn-ghost" id="backToAIChat">← Refine with AI</button>
+      </div>
+      <div class="card">
+        <div class="field"><label>Title</label><input class="input" id="newTitle" value="${esc(p.title || '')}" /></div>
+        <div class="field"><label>Category</label>
+          <select class="select" id="newCategory">
+            <option value="payments" ${p.category === 'payments' ? 'selected' : ''}>Payments</option>
+            <option value="content" ${p.category === 'content' ? 'selected' : ''}>Content</option>
+            <option value="other" ${(!p.category || p.category === 'other') ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div id="categoryFields"></div>
+        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="3">${esc(p.fields?.description || '')}</textarea></div>
+        <div class="field"><label>Approval path</label>
+          <div class="step-builder" id="stepBuilder">
+            ${(p.suggestedApproverIds?.length ? p.suggestedApproverIds : ['']).map((id, i) => stepBuilderRowHTML(id, i + 1)).join('')}
+          </div>
+          <button class="btn" id="addStep" style="margin-top:8px;">+ Add step</button>
+        </div>
+        ${_ai.files.length ? `<div class="field"><label>Attachments</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span></div>`).join('')}</div>` : ''}
+        ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+        <div class="row-actions" style="margin-top:16px;">
+          <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
+        </div>
+      </div>`;
+  }
+
+  function renderNewManualPage() {
+    const fb = _manual.feedback;
+    return `
+      <div class="new-page-header card-row">
+        <div style="flex:1;">
+          <h1>Fill in yourself</h1>
+          <p class="card-meta">Complete the form, then run an AI check before submitting.</p>
+        </div>
+        <button class="btn btn-ghost" id="backToModePick">← Change method</button>
+      </div>
+      <div class="card">
+        <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" /></div>
+        <div class="field"><label>Category</label>
+          <select class="select" id="newCategory">
+            <option value="payments">Payments</option>
+            <option value="content">Content</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div id="categoryFields"></div>
+        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="4" placeholder="Context, background, anything approvers should know"></textarea></div>
+        <div class="field"><label>Approval path</label>
+          <div class="step-builder" id="stepBuilder">${stepBuilderRowHTML('', 1)}</div>
+          <button class="btn" id="addStep" style="margin-top:8px;">+ Add step</button>
+        </div>
+        ${_manual.checking ? `<div style="text-align:center;padding:20px;"><span class="spin"></span><div class="card-meta" style="margin-top:8px;">AI is reviewing your draft…</div></div>` : ''}
+
+        ${fb && ! _manual.checking ? `
+          ${fb.required?.length ? `<div class="ai-feedback required"><b>Must add</b><ul style="margin:8px 0 0;padding-left:18px;">${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Suggestions</b><ul style="margin:8px 0 0;padding-left:18px;">${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>Ready to submit</b> — all required fields are complete. Re-run check after any edits.</div>` : ''}
+          ${fb.question ? `
+            <div class="ai-feedback" style="border-left:4px solid var(--accent);">
+              <b>AI asks</b><p style="margin:8px 0 0;">${esc(fb.question)}</p>
+              <div class="field" style="margin-top:12px;margin-bottom:0;">
+                <textarea class="textarea" id="validateReply" rows="2" placeholder="Your answer (optional)">${esc(_manual.validateReply)}</textarea>
+              </div>
+            </div>` : ''}
+        ` : ''}
+
+        ${_manual.error ? `<div class="error">${esc(_manual.error)}</div>` : ''}
+
+        <div class="row-actions" style="margin-top:16px; flex-wrap:wrap;">
+          <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
+          <button class="btn btn-primary" id="submitManual" ${fb?.ready ? '' : 'disabled title="Run AI check — all required items must pass before submit"'}>Submit for approval</button>
+        </div>
+        ${!fb ? `<p class="help">Fill in the form, then use <b>Check with AI</b>. Submit is only available when AI marks the draft as ready.</p>` : ''}
+      </div>`;
+  }
+
   function renderTaskCard(t) {
     const submitter = userName(t.submitterId);
     const step = t.steps.find((s) => s.status === 'pending');
@@ -965,117 +1176,6 @@
   };
   function resetAI() {
     _ai = { phase: 'describe', messages: [], images: [], files: [], proposed: null, question: null, error: null, draftId: null, sourceDraft: null, recording: false };
-  }
-
-  function renderNewTaskModal() {
-    if (_ai.phase === 'describe' || _ai.phase === 'thinking' || _ai.phase === 'ask') {
-      return renderAIConversationModal();
-    }
-    return renderAIReviewModal();
-  }
-
-  function renderAIConversationModal() {
-    const isFirst = !_ai.messages.length;
-    const lastUserMsgs = _ai.messages.filter((m) => m.role === 'user').map((m) => typeof m.content === 'string' ? m.content : (m.content.find((b) => b.type === 'text')?.text || ''));
-    return `
-      <div class="scrim">
-        <div class="modal" style="max-width: 640px;">
-          <div class="modal-header">
-            <h2>${_ai.sourceDraft ? 'Finish draft' : 'New approval'}</h2>
-            <button class="close" id="closeModal">×</button>
-          </div>
-
-          ${_ai.sourceDraft ? `<div class="card" style="margin-bottom: 14px; background: var(--card-2);">
-            <div class="card-meta">${_ai.sourceDraft.senderName ? 'From Slack: ' + esc(_ai.sourceDraft.senderName) : 'From Slack'}</div>
-            <div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(_ai.sourceDraft.description)}</div>
-          </div>` : ''}
-
-          ${lastUserMsgs.length > 1 ? lastUserMsgs.slice(0, -1).map((t) => `
-            <div class="card" style="background: var(--card-2); margin-bottom: 8px; font-size: 13px;">
-              <div class="card-meta">You said</div><div style="margin-top: 4px; white-space: pre-wrap;">${esc(t)}</div>
-            </div>`).join('') : ''}
-
-          ${_ai.phase === 'ask' && _ai.question ? `
-            <div class="card card-dark" style="margin-bottom: 14px;">
-              <div class="card-meta" style="color:#d9f03a;">AI asks</div>
-              <div style="margin-top: 6px; font-size: 14px;">${esc(_ai.question)}</div>
-            </div>` : ''}
-
-          ${_ai.phase === 'thinking' ? `
-            <div style="text-align:center; padding: 30px 0;">
-              <span class="spin"></span><div style="margin-top: 10px; color: var(--text-dim);">Thinking…</div>
-            </div>
-          ` : `
-            <div class="field">
-              <label>${_ai.phase === 'ask' ? 'Your reply' : (isFirst ? 'Describe the request' : 'Add more details')}</label>
-              <textarea class="textarea" id="aiInput" rows="4" placeholder="${isFirst ? 'e.g. Need to pay Adobe \$240 USD for next year\'s Creative Cloud subscription, invoice attached. Or just speak.' : 'Answer the question above…'}">${esc(_ai.sourceDraft && isFirst ? _ai.sourceDraft.description : '')}</textarea>
-            </div>
-
-            <div class="card-row" style="gap: 10px; flex-wrap: wrap;">
-              <button class="btn" id="recordBtn">${_ai.recording ? '⏹ Stop recording' : '🎤 Dictate'}</button>
-              <button class="btn" id="attachFilesBtn">📎 Add files</button>
-              <input type="file" id="aiFileInput" multiple style="display:none;" accept="*/*" />
-              <span style="flex:1"></span>
-              <span class="card-meta" id="aiFileCount">${_ai.files.length ? _ai.files.length + ' file' + (_ai.files.length>1?'s':'') + ' attached' : ''}${_ai.images.length ? (_ai.files.length ? ' · ' : '') + _ai.images.length + ' image' + (_ai.images.length>1?'s':'') + ' for AI' : ''}</span>
-            </div>
-
-            ${_ai.files.length ? `<div style="margin-top: 10px;">${_ai.files.map((f, i) => `
-              <div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span><button class="btn-ghost" data-rm-file="${i}" style="padding: 2px 6px; color: var(--danger); border: none; background: transparent; cursor: pointer;">×</button></div>
-            `).join('')}</div>` : ''}
-          `}
-
-          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
-
-          <div class="modal-footer">
-            <button class="btn" id="cancelNew">Cancel</button>
-            ${_ai.phase !== 'thinking' ? `<button class="btn btn-primary" id="aiSubmit">${isFirst ? 'Draft with AI' : 'Send reply'}</button>` : ''}
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function renderAIReviewModal() {
-    const p = _ai.proposed || {};
-    return `
-      <div class="scrim">
-        <div class="modal">
-          <div class="modal-header">
-            <h2>Review & submit</h2>
-            <button class="close" id="closeModal">×</button>
-          </div>
-          <p class="card-meta" style="margin-top:-8px;margin-bottom:14px;">AI drafted this from what you told it. Edit anything before submitting.</p>
-
-          <div class="field">
-            <label>Title</label>
-            <input class="input" id="newTitle" value="${esc(p.title || '')}" />
-          </div>
-          <div class="field">
-            <label>Category</label>
-            <select class="select" id="newCategory">
-              <option value="payments" ${p.category === 'payments' ? 'selected' : ''}>Payments</option>
-              <option value="content" ${p.category === 'content' ? 'selected' : ''}>Content</option>
-              <option value="other" ${(!p.category || p.category === 'other') ? 'selected' : ''}>Other</option>
-            </select>
-          </div>
-          <div id="categoryFields"></div>
-          <div class="field">
-            <label>Approval path</label>
-            <div class="help" style="margin-top: 4px;">Each approver acts in order. Drag/edit as needed.</div>
-            <div class="step-builder" id="stepBuilder">
-              ${(p.suggestedApproverIds && p.suggestedApproverIds.length ? p.suggestedApproverIds : ['']).map((id, i) => stepBuilderRowHTML(id, i + 1)).join('')}
-            </div>
-            <button class="btn" id="addStep">+ Add step</button>
-          </div>
-          ${_ai.files.length ? `<div class="field"><label>Attachments (${_ai.files.length})</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span></div>`).join('')}</div>` : ''}
-
-          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
-
-          <div class="modal-footer">
-            <button class="btn" id="backToAI">← Refine with AI</button>
-            <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
-          </div>
-        </div>
-      </div>`;
   }
 
   function projectFieldHTML(selectedId, selectedName) {
@@ -1344,7 +1444,9 @@
     // Scope tabs
     document.querySelectorAll('.pill[data-scope]').forEach((el) => {
       el.onclick = async () => {
-        state.scope = el.dataset.scope;
+        const next = el.dataset.scope;
+        if (next !== 'new') state.newCreationMode = null;
+        state.scope = next;
         nav('/');
         await refreshAll();
         render();
@@ -1361,21 +1463,25 @@
     const navAdmin = document.getElementById('navAdmin');
     if (navAdmin) navAdmin.onclick = () => nav('/admin');
     const backHome = document.getElementById('backHome');
-    if (backHome) backHome.onclick = () => nav('/');
+    if (backHome) backHome.onclick = async () => {
+      if (state.scope === 'new') state.scope = 'pending';
+      nav('/');
+      await refreshAll();
+      render();
+    };
 
-    document.getElementById('fab').onclick = startNewApproval;
-    const newApprovalBtn = document.getElementById('newApprovalBtn');
-    if (newApprovalBtn) newApprovalBtn.onclick = startNewApproval;
-
-    // Drafts panel — finish or delete
+    // Drafts panel — finish or delete (NEW tab only)
     document.querySelectorAll('[data-finish-draft]').forEach((b) => {
       b.onclick = () => {
         const draft = state.drafts.find((d) => d.id === b.dataset.finishDraft);
         if (!draft) return;
         resetAI();
+        resetManual();
         _ai.sourceDraft = draft;
         _ai.draftId = draft.id;
-        state.modalOpen = 'new';
+        state.scope = 'new';
+        state.newCreationMode = 'ai';
+        nav('/');
         render();
       };
     });
@@ -1393,7 +1499,7 @@
     const flashOk = document.getElementById('flashOk');
     if (flashOk) flashOk.onclick = () => { state.flash = null; render(); };
 
-    if (state.modalOpen === 'new') bindNewTaskModal();
+    if (state.scope === 'new') bindNewPage();
     if (state.modalOpen === 'admin-user') bindAdminUserModal();
     if (state.drawerOpen) bindDrawer();
     if (state.route.path === '/admin') bindAdmin();
@@ -1455,50 +1561,141 @@
     };
   }
 
-  function bindNewTaskModal() {
-    // Wire up: based on phase, different controls exist.
-    document.getElementById('closeModal').onclick = closeAIModal;
-    const cancelBtn = document.getElementById('cancelNew');
-    if (cancelBtn) cancelBtn.onclick = closeAIModal;
+  function bindNewPage() {
+    const pickManual = document.getElementById('pickManual');
+    const pickAI = document.getElementById('pickAI');
+    if (pickManual) pickManual.onclick = () => { state.newCreationMode = 'manual'; resetManual(); render(); };
+    if (pickAI) pickAI.onclick = () => { state.newCreationMode = 'ai'; resetAI(); render(); };
 
-    if (_ai.phase === 'review') return bindAIReviewControls();
-    if (_ai.phase === 'thinking') return; // nothing to bind
+    const backPick = document.getElementById('backToModePick');
+    if (backPick) backPick.onclick = () => { resetNewPage(); render(); };
 
-    // describe / ask phase
+    if (state.newCreationMode === 'manual') return bindManualPage();
+    if (state.newCreationMode === 'ai') {
+      if (_ai.phase === 'review') return bindAIReviewControls();
+      bindAIChatControls();
+    }
+  }
+
+  function bindAIChatControls() {
     const aiSubmit = document.getElementById('aiSubmit');
     if (aiSubmit) aiSubmit.onclick = sendToAI;
-
     const recordBtn = document.getElementById('recordBtn');
     if (recordBtn) recordBtn.onclick = toggleRecording;
-
     const attachBtn = document.getElementById('attachFilesBtn');
-    if (attachBtn) attachBtn.onclick = () => document.getElementById('aiFileInput').click();
+    if (attachBtn) attachBtn.onclick = () => document.getElementById('aiFileInput')?.click();
     const fileInput = document.getElementById('aiFileInput');
     if (fileInput) fileInput.onchange = handleFileSelect;
-
     document.querySelectorAll('[data-rm-file]').forEach((b) => {
-      b.onclick = () => {
-        _ai.files.splice(Number(b.dataset.rmFile), 1);
-        render();
-      };
+      b.onclick = () => { _ai.files.splice(Number(b.dataset.rmFile), 1); render(); };
     });
-
-    // Auto-focus the textarea
     const ta = document.getElementById('aiInput');
     if (ta) setTimeout(() => ta.focus(), 50);
   }
 
-  function closeAIModal() {
-    if (_mediaRecorder && _mediaRecorder.state === 'recording') _mediaRecorder.stop();
-    resetAI();
-    state.modalOpen = null;
-    nav('/');
+  function bindManualFormSetup(prefill) {
+    const catEl = document.getElementById('newCategory');
+    const fieldsEl = document.getElementById('categoryFields');
+    if (!catEl || !fieldsEl) return;
+    function repaint() {
+      fieldsEl.innerHTML = renderCategoryFields(catEl.value);
+      bindPaymentTypeField();
+      bindProjectField();
+      if (prefill && catEl.value === prefill.category) {
+        const f = prefill.fields || {};
+        if (f.paymentType) document.getElementById('fPaymentType')?.value = f.paymentType;
+        if (f.amount != null) document.getElementById('fAmount').value = f.amount;
+        if (f.currency) document.getElementById('fCurrency').value = f.currency;
+        if (f.vendor) document.getElementById('fVendor').value = f.vendor;
+        if (f.country) document.getElementById('fCountry').value = f.country;
+        if (f.purpose) document.getElementById('fPurpose').value = f.purpose;
+        if (f.dueDate) document.getElementById('fDueDate').value = f.dueDate;
+        if (f.link) document.getElementById('fLink').value = f.link;
+        const projSel = document.getElementById('fProjectId');
+        const projName = document.getElementById('fProjectName');
+        if (projSel && f.projectId) projSel.value = f.projectId;
+        else if (projSel && f.projectName) { projSel.value = '__other'; projName.style.display = 'block'; projName.value = f.projectName; }
+      }
+    }
+    repaint();
+    catEl.onchange = () => { repaint(); };
+    const addStep = document.getElementById('addStep');
+    if (addStep) addStep.onclick = () => {
+      const b = document.getElementById('stepBuilder');
+      const div = document.createElement('div');
+      div.innerHTML = stepBuilderRowHTML('', b.children.length + 1);
+      b.appendChild(div.firstChild);
+      attachRowHandlers(b);
+    };
+    attachRowHandlers(document.getElementById('stepBuilder'));
   }
 
-  function startNewApproval() {
-    resetAI();
-    state.modalOpen = 'new';
+  function gatherManualDraft() {
+    const category = document.getElementById('newCategory')?.value || 'other';
+    const fields = gatherCategoryFields(category);
+    fields.description = (document.getElementById('newDescription')?.value || '').trim();
+    const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
+    return {
+      title: (document.getElementById('newTitle')?.value || '').trim(),
+      category,
+      fields,
+      approverIds,
+    };
+  }
+
+  function bindManualPage() {
+    bindManualFormSetup();
+
+    const validateReply = document.getElementById('validateReply');
+    if (validateReply) validateReply.oninput = (e) => { _manual.validateReply = e.target.value; };
+
+    const checkBtn = document.getElementById('checkWithAI');
+    if (checkBtn) checkBtn.onclick = checkManualWithAI;
+    const submitBtn = document.getElementById('submitManual');
+    if (submitBtn) submitBtn.onclick = submitManualApproval;
+  }
+
+  async function checkManualWithAI() {
+    const draft = gatherManualDraft();
+    if (!draft.title) { _manual.error = 'Add a title first.'; render(); return; }
+    _manual.error = null;
+    _manual.checking = true;
     render();
+    try {
+      const reply = (document.getElementById('validateReply')?.value || '').trim();
+      if (reply) draft.fields.description = (draft.fields.description ? draft.fields.description + '\n\n' : '') + reply;
+      const r = await api('/api/ai-draft', { method: 'POST', body: { mode: 'validate', draft } });
+      _manual.feedback = r;
+      _manual.validateReply = '';
+    } catch (e) {
+      _manual.error = e.message;
+    }
+    _manual.checking = false;
+    render();
+  }
+
+  async function submitManualApproval() {
+    const draft = gatherManualDraft();
+    if (!_manual.feedback?.ready) {
+      _manual.error = 'Run “Check with AI” and complete all required items before submitting.';
+      render();
+      return;
+    }
+    if (!draft.title) { _manual.error = 'Title required'; render(); return; }
+    if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
+    _manual.error = null;
+    try {
+      const r = await api('/api/tasks', { method: 'POST', body: {
+        title: draft.title, category: draft.category, fields: draft.fields, approverIds: draft.approverIds, source: 'web',
+      } });
+      resetNewPage();
+      state.scope = 'submitted';
+      await refreshAll();
+      nav('/task/' + r.task.id);
+    } catch (e) {
+      _manual.error = e.message;
+      render();
+    }
   }
 
   async function handleFileSelect(e) {
@@ -1605,9 +1802,11 @@
   function bindAIReviewControls() {
     const catEl = document.getElementById('newCategory');
     const fieldsEl = document.getElementById('categoryFields');
+    const descEl = document.getElementById('newDescription');
+    if (descEl && _ai.proposed?.fields?.description) descEl.value = _ai.proposed.fields.description;
+
     function repaintFields() {
       fieldsEl.innerHTML = renderCategoryFields(catEl.value);
-      // Pre-fill from AI proposal
       const f = _ai.proposed?.fields || {};
       // Project field (all categories)
       const projSel = document.getElementById('fProjectId');
@@ -1625,6 +1824,7 @@
         if (f.amount != null) document.getElementById('fAmount').value = f.amount;
         if (f.currency) document.getElementById('fCurrency').value = f.currency;
         if (f.vendor) document.getElementById('fVendor').value = f.vendor;
+        if (f.country) document.getElementById('fCountry').value = f.country;
         if (f.purpose) document.getElementById('fPurpose').value = f.purpose;
         if (f.dueDate) document.getElementById('fDueDate').value = f.dueDate;
         bindPaymentTypeField();
@@ -1645,7 +1845,8 @@
     };
     attachRowHandlers(document.getElementById('stepBuilder'));
 
-    document.getElementById('backToAI').onclick = () => {
+    const backChat = document.getElementById('backToAIChat');
+    if (backChat) backChat.onclick = () => {
       _ai.phase = 'ask';
       _ai.question = 'What would you like to change about the draft?';
       render();
@@ -1655,7 +1856,7 @@
       const title = document.getElementById('newTitle').value.trim();
       const category = catEl.value;
       const fields = gatherCategoryFields(category);
-      fields.description = _ai.proposed?.fields?.description || '';
+      fields.description = (document.getElementById('newDescription')?.value || _ai.proposed?.fields?.description || '').trim();
       const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
       _ai.error = null;
       if (!title) { _ai.error = 'Title required'; render(); return; }
@@ -1669,8 +1870,8 @@
         if (_ai.files.length) await uploadFiles(_ai.files, r.task.id);
         if (_ai.draftId) await api('/api/task-drafts/' + _ai.draftId, { method: 'DELETE' }).catch(() => {});
         const newTaskId = r.task.id;
-        resetAI();
-        state.modalOpen = null;
+        resetNewPage();
+        state.scope = 'submitted';
         await refreshAll();
         nav('/task/' + newTaskId);
       } catch (e) {
