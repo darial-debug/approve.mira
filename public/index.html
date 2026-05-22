@@ -505,6 +505,13 @@
     const res = await fetch(path, { ...options, headers, body: options.body ? JSON.stringify(options.body) : undefined });
     const text = await res.text();
     let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+    if (res.status === 401) {
+      // Auth expired or invalid — kick to login so the user knows.
+      localStorage.removeItem(TOKEN_KEY);
+      state.user = null;
+      render();
+      throw new Error('Signed out — please sign in again');
+    }
     if (!res.ok) throw new Error(data.error || res.statusText);
     return data;
   }
@@ -894,9 +901,29 @@
   }
 
   // ─── NEW tab: create approval (manual or AI) ───
-  let _manual = { feedback: null, checking: false, error: null, validateReply: '' };
+  // _manual.draft persists user input across re-renders (spinner, AI feedback, etc.)
+  // so the title/amount/etc. don't blank out mid-flow.
+  let _manual = { feedback: null, checking: false, error: null, validateReply: '', draft: emptyManualDraft() };
+  function emptyManualDraft() {
+    return { title: '', category: 'payments', description: '', fields: {}, approverIds: [] };
+  }
   function resetManual() {
-    _manual = { feedback: null, checking: false, error: null, validateReply: '' };
+    _manual = { feedback: null, checking: false, error: null, validateReply: '', draft: emptyManualDraft() };
+  }
+  // Capture whatever's currently typed in the form into _manual.draft.
+  // Call this before any render() that would wipe the DOM.
+  function snapshotManualDraft() {
+    const titleEl = document.getElementById('newTitle');
+    const catEl = document.getElementById('newCategory');
+    const descEl = document.getElementById('newDescription');
+    if (!titleEl) return; // form not mounted
+    _manual.draft = {
+      title: titleEl.value,
+      category: catEl?.value || 'other',
+      description: descEl?.value || '',
+      fields: gatherCategoryFields(catEl?.value || 'other'),
+      approverIds: Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value),
+    };
   }
   function resetNewPage() {
     resetAI();
@@ -1073,6 +1100,8 @@
 
   function renderNewManualPage() {
     const fb = _manual.feedback;
+    const d = _manual.draft || emptyManualDraft();
+    const approvers = d.approverIds && d.approverIds.length ? d.approverIds : [''];
     return `
       <div class="new-page-header card-row">
         <div style="flex:1;">
@@ -1083,18 +1112,18 @@
       </div>
       <div class="card">
         <div class="form-section-title">Request</div>
-        <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" /></div>
+        <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" value="${esc(d.title || '')}" /></div>
         <div class="field"><label>Category</label>
           <select class="select" id="newCategory">
-            <option value="payments">Payments</option>
-            <option value="content">Content</option>
-            <option value="other">Other</option>
+            <option value="payments" ${d.category === 'payments' ? 'selected' : ''}>Payments</option>
+            <option value="content" ${d.category === 'content' ? 'selected' : ''}>Content</option>
+            <option value="other" ${d.category === 'other' ? 'selected' : ''}>Other</option>
           </select>
         </div>
         <div id="categoryFields"></div>
-        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="4" placeholder="Context, background, anything approvers should know"></textarea></div>
+        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="4" placeholder="Context, background, anything approvers should know">${esc(d.description || '')}</textarea></div>
         <div class="form-section-title">Approval path</div>
-        <div class="step-builder" id="stepBuilder">${stepBuilderRowHTML('', 1)}</div>
+        <div class="step-builder" id="stepBuilder">${approvers.map((id, i) => stepBuilderRowHTML(id || '', i + 1)).join('')}</div>
         <button class="btn" id="addStep" style="margin-top:10px;">+ Add approver step</button>
 
         ${_manual.checking ? `<div class="ai-checking" style="margin-top: 14px;"><span class="spin"></span><div class="card-meta" style="margin-top:10px;">AI is reviewing your draft…</div></div>` : ''}
@@ -1902,7 +1931,8 @@
   }
 
   function bindManualPage() {
-    bindManualFormSetup();
+    // Pass draft snapshot so category fields restore after re-render.
+    bindManualFormSetup(_manual.draft);
 
     const validateReply = document.getElementById('validateReply');
     if (validateReply) validateReply.oninput = (e) => { _manual.validateReply = e.target.value; };
@@ -1914,6 +1944,7 @@
   }
 
   async function checkManualWithAI() {
+    snapshotManualDraft();
     const draft = gatherManualDraft();
     if (!draft.title) { _manual.error = 'Add a title first.'; render(); return; }
     _manual.error = null;
@@ -1933,6 +1964,7 @@
   }
 
   async function submitManualApproval() {
+    snapshotManualDraft();
     const draft = gatherManualDraft();
     if (!draft.title) { _manual.error = 'Title required'; render(); return; }
     if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
