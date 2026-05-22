@@ -266,6 +266,85 @@
     .stat-tile.accent { background: var(--accent); }
     .stat-tile.dark { background: var(--dark-card); color: var(--bg-2); }
     .stat-tile.dark .label { color: #9aa0a6; }
+
+    /* ── Filter bar ── */
+    .filters-bar { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; padding: 14px 16px; background: var(--bg-2); border-radius: var(--radius); margin-bottom: 16px; box-shadow: var(--shadow-card); }
+    .filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 150px; flex: 1; }
+    .filter-field label { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-field .select, .filter-field .input { padding: 8px 12px; font-size: 13px; }
+    .filter-dates { min-width: 240px; }
+    .filter-dates-row { display: flex; gap: 6px; }
+    .filter-dates-row .input { flex: 1; min-width: 0; }
+    .filters-clear { font-size: 12px; padding: 8px 14px; }
+
+    /* ── List summary ── */
+    .list-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; padding: 4px 4px 14px; flex-wrap: wrap; }
+    .list-summary .count { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .list-summary .count span { font-size: 13px; color: var(--text-dim); margin-left: 8px; font-weight: 500; }
+    .list-summary .totals { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
+    .list-summary .totals-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+    /* ── Redesigned task card ── */
+    .task-card { display: flex; align-items: stretch; gap: 18px; padding: 18px 22px; }
+    .task-card-main { flex: 1; min-width: 0; cursor: pointer; }
+    .task-card-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .task-card-title { font-weight: 600; font-size: 16px; letter-spacing: -0.2px; margin-bottom: 4px; }
+    .task-card-desc { font-size: 13px; color: var(--text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .task-card-side { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 10px; min-width: 130px; }
+    .task-card-amount { font-size: 22px; font-weight: 700; letter-spacing: -0.4px; line-height: 1.1; }
+    .task-card-amount .cur { font-size: 12px; color: var(--text-dim); margin-left: 5px; font-weight: 500; }
+    .task-card-amount.empty { font-size: 13px; color: var(--text-dim); font-weight: 500; }
+    .btn-approve { padding: 9px 18px; border-radius: 999px; border: none; background: var(--accent); color: #0a0b0c; cursor: pointer; font-weight: 600; font-size: 13px; box-shadow: var(--shadow-card); transition: all 0.15s ease; }
+    .btn-approve:hover:not(:disabled) { background: var(--accent-dim); transform: translateY(-1px); }
+    .btn-approve:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* ── New page (mode picker, headers, mode cards) ── */
+    .new-page-header { margin-bottom: 22px; }
+    .new-page-header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.4px; }
+    .mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) { .mode-pick { grid-template-columns: 1fr; } }
+    .mode-card { background: var(--card); border-radius: var(--radius); padding: 28px 24px; cursor: pointer; box-shadow: var(--shadow-card); transition: all 0.18s ease; }
+    .mode-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-2px); border: 1px solid var(--accent); }
+    .mode-card .mode-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--accent); color: #0a0b0c; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; margin-bottom: 14px; }
+    .mode-card h3 { margin: 0 0 6px; font-size: 17px; }
+    .mode-card p { margin: 0; color: var(--text-dim); font-size: 13px; }
+
+    /* ── Workflow steps pill row ── */
+    .workflow-steps { display: flex; gap: 8px; margin-bottom: 22px; flex-wrap: wrap; }
+    .workflow-step { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--bg-3); color: var(--text-dim); font-size: 12px; font-weight: 600; }
+    .workflow-step .num { width: 20px; height: 20px; border-radius: 50%; background: var(--bg-2); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; box-shadow: var(--shadow-card); }
+    .workflow-step.active { background: var(--accent); color: #0a0b0c; }
+    .workflow-step.active .num { background: #0a0b0c; color: var(--accent); }
+    .workflow-step.done { background: var(--dark-card); color: var(--bg-2); }
+    .workflow-step.done .num { background: var(--accent); color: #0a0b0c; }
+
+    /* ── Form sections + dark action bar ── */
+    .form-section-title { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; margin: 20px 0 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .form-section-title:first-of-type { padding-top: 0; border-top: none; margin-top: 6px; }
+    .form-actions { margin-top: 24px; background: var(--dark-card); color: var(--bg-2); padding: 18px 22px; border-radius: var(--radius); }
+    .form-actions .actions-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .form-actions .actions-hint { flex: 1; min-width: 220px; color: #cfd2d6; font-size: 13px; margin: 0; }
+    .form-actions .actions-hint strong { color: var(--accent); font-weight: 700; }
+    .submit-status { padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; }
+    .submit-status.locked { background: #2a2d31; color: #9aa0a6; }
+    .submit-status.ready { background: var(--accent); color: #0a0b0c; }
+    .form-actions .btn { background: var(--bg-2); color: var(--text); }
+
+    /* ── AI advisory feedback blocks ── */
+    .ai-feedback { padding: 14px 16px; border-radius: var(--radius-sm); margin-bottom: 10px; font-size: 13px; }
+    .ai-feedback b { display: block; margin-bottom: 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .ai-feedback ul { margin: 6px 0 0; padding-left: 20px; }
+    .ai-feedback.required { background: rgba(225,85,85,0.08); color: var(--danger); }
+    .ai-feedback.suggestions { background: var(--card-2); color: var(--text); }
+    .ai-feedback.ok-panel { background: rgba(59,169,116,0.10); color: var(--ok); }
+    .ai-checking { background: var(--card-2); padding: 18px; border-radius: var(--radius-sm); text-align: center; margin-top: 14px; }
+
+    /* ── AI chat thread bubbles ── */
+    .ai-chat-thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .chat-bubble { padding: 12px 16px; border-radius: 16px; max-width: 80%; font-size: 13.5px; line-height: 1.5; }
+    .chat-bubble.user { background: var(--accent); color: #0a0b0c; align-self: flex-end; border-bottom-right-radius: 6px; }
+    .chat-bubble.ai { background: var(--dark-card); color: var(--bg-2); align-self: flex-start; border-bottom-left-radius: 6px; }
+    .chat-bubble .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 4px; }
   </style>
 </head>
 <body>
@@ -288,10 +367,20 @@
     unread: 0,
     analytics: null,
     route: parseRoute(),
-    scope: 'pending',
-    category: 'all',
+    scope: 'pending',        // pending | submitted | history | new | all
+    newCreationMode: null,   // null | 'manual' | 'ai' (only when scope==='new')
+    pendingCount: 0,
+    filters: {
+      business: '',
+      departmentId: '',
+      submitterId: '',
+      country: '',
+      dateFrom: '',
+      dateTo: '',
+      paymentType: '',
+    },
     drawerOpen: false,
-    modalOpen: null, // 'new' | 'admin-user' | etc
+    modalOpen: null,         // 'admin-user' only now
     flash: null,
   };
 
@@ -313,8 +402,11 @@
   });
 
   function openNewFromRoute() {
+    state.scope = 'new';
+    state.newCreationMode = 'ai';
     const draftId = state.route.query.draft;
     resetAI();
+    resetManual();
     if (draftId) {
       const draft = (state.drafts || []).find((d) => d.id === draftId);
       if (draft) {
@@ -322,7 +414,7 @@
         _ai.draftId = draft.id;
       }
     }
-    state.modalOpen = 'new';
+    state.modalOpen = null;
     render();
   }
 
@@ -406,28 +498,72 @@
   }
 
   async function refreshAll() {
-    const [tasks, users, departments, projects, drafts] = await Promise.all([
-      api('/api/tasks?scope=' + (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'mine' : state.scope)).catch(() => ({ tasks: [] })),
+    // For the list scopes we send a real scope; for the New tab we don't fetch tasks for it.
+    const isExec = state.user?.role === 'admin' || state.user?.role === 'c_level';
+    const scopeParam = state.scope === 'new' ? null
+      : (state.scope === 'all' && !isExec ? 'history' : state.scope);
+    const [tasks, pendingRes, users, departments, projects, drafts] = await Promise.all([
+      scopeParam ? api('/api/tasks?scope=' + scopeParam).catch(() => ({ tasks: [] })) : Promise.resolve({ tasks: [] }),
+      api('/api/tasks?scope=pending').catch(() => ({ tasks: [] })),
       api('/api/users').catch(() => ({ users: [] })),
       api('/api/departments').catch(() => ({ departments: [] })),
       api('/api/projects').catch(() => ({ projects: [] })),
       api('/api/task-drafts').catch(() => ({ drafts: [] })),
     ]);
     state.tasks = tasks.tasks || [];
+    state.pendingCount = (pendingRes.tasks || []).length;
     state.users = users.users || [];
     state.departments = departments.departments || [];
     state.projects = projects.projects || [];
     state.drafts = drafts.drafts || [];
-    if (state.user?.role === 'admin' || state.user?.role === 'c_level') {
+    if (isExec) {
       api('/api/analytics').then((a) => { state.analytics = a; render(); }).catch(() => {});
     }
   }
 
-  // Helpers for project & finance
+  // ─── Helpers: project, finance, filters, summary, list math ──────────────
   function projectLabel(t) {
     const f = t.fields || {};
     if (f.projectId) return state.projects.find((p) => p.id === f.projectId)?.name || f.projectName || '—';
     return f.projectName || '';
+  }
+  function taskBusinessKey(t) {
+    const f = t.fields || {};
+    if (f.projectId) return 'id:' + f.projectId;
+    if (f.projectName) return 'name:' + f.projectName;
+    return '';
+  }
+  function submitterDepartmentId(t) {
+    return state.users.find((x) => x.id === t.submitterId)?.departmentId || '';
+  }
+  function submitterDeptName(t) {
+    const id = submitterDepartmentId(t);
+    if (!id) return '';
+    return state.departments.find((d) => d.id === id)?.name || '';
+  }
+  function applyTaskFilters(list) {
+    const f = state.filters;
+    return list.filter((t) => {
+      if (f.business && taskBusinessKey(t) !== f.business) return false;
+      if (f.departmentId && submitterDepartmentId(t) !== f.departmentId) return false;
+      if (f.submitterId && t.submitterId !== f.submitterId) return false;
+      if (f.country && (t.fields?.country || '') !== f.country) return false;
+      if (f.paymentType) {
+        if (t.category !== 'payments') return false;
+        if ((t.fields?.paymentType || 'payment') !== f.paymentType) return false;
+      }
+      if (f.dateFrom && new Date(t.createdAt) < new Date(f.dateFrom + 'T00:00:00')) return false;
+      if (f.dateTo && new Date(t.createdAt) > new Date(f.dateTo + 'T23:59:59.999')) return false;
+      return true;
+    });
+  }
+  function filterOptionsFromTasks(list) {
+    const countries = new Set();
+    list.forEach((t) => { if (t.fields?.country) countries.add(t.fields.country); });
+    return { countries: [...countries].sort() };
+  }
+  function clearFilters() {
+    state.filters = { business: '', departmentId: '', submitterId: '', country: '', dateFrom: '', dateTo: '', paymentType: '' };
   }
   function isFinanceMember() {
     if (!state.user) return false;
@@ -437,6 +573,45 @@
     return !!dept && /finance/i.test(dept.name);
   }
   const paymentTypeLabel = (t) => ({ payment: 'Payment', refund: 'Refund', postpayment: 'Postpayment' }[t] || t);
+
+  const CLOSED_STATUSES = new Set(['approved', 'declined', 'transferred']);
+  function isTaskClosed(t) { return CLOSED_STATUSES.has(t.status); }
+  function fmtHoursWaiting(t) {
+    const iso = t.updatedAt || t.createdAt;
+    if (!iso || isTaskClosed(t)) return '';
+    const h = (Date.now() - new Date(iso).getTime()) / 3600000;
+    if (h < 1) return '<1h waiting';
+    if (h < 24) return `${Math.floor(h)}h waiting`;
+    return `${Math.floor(h / 24)}d waiting`;
+  }
+  function currentStageLabel(t) {
+    if (isTaskClosed(t)) return '';
+    if (t.status === 'awaiting_transfer') return 'Finance · transfer';
+    const step = t.steps.find((s) => s.status === 'pending');
+    if (!step) return t.status === 'under_review' ? 'Under review' : '';
+    const who = step.approverId === state.user?.id ? 'You' : userName(step.approverId);
+    return `Step ${step.stepNumber}/${t.steps.length} · ${who}`;
+  }
+  function taskDescription(t) {
+    return ((t.fields?.description || t.fields?.purpose) || '').trim() || 'No description';
+  }
+  function computeListSummary(tasks) {
+    const totals = {};
+    tasks.forEach((t) => {
+      if (t.category === 'payments' && t.fields?.amount != null) {
+        const n = Number(t.fields.amount);
+        if (Number.isFinite(n)) {
+          const cur = t.fields.currency || '—';
+          totals[cur] = (totals[cur] || 0) + n;
+        }
+      }
+    });
+    const totalsStr = Object.entries(totals)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([cur, sum]) => `${sum.toLocaleString(undefined, { maximumFractionDigits: 2 })} ${cur}`)
+      .join(' · ');
+    return { count: tasks.length, totalsStr };
+  }
 
   // ─── Render top-level ───
   function render() {
@@ -451,8 +626,6 @@
         <div class="canvas">
           ${renderTopbar()}
           ${renderRoute()}
-          <button class="fab" id="fab" title="New approval request">+</button>
-          ${state.modalOpen === 'new' ? renderNewTaskModal() : ''}
           ${state.modalOpen === 'admin-user' ? renderAdminUserModal() : ''}
           ${state.drawerOpen ? renderDrawer() : ''}
           ${state.flash ? `<div class="scrim" id="flashScrim"><div class="modal" style="max-width:420px">${state.flash}<div class="modal-footer"><button class="btn btn-primary" id="flashOk">OK</button></div></div></div>` : ''}
@@ -506,30 +679,19 @@
   // ─── Topbar ───
   function renderTopbar() {
     const isAdmin = state.user.role === 'admin';
-    const isExec = isAdmin || state.user.role === 'c_level';
-    const pending = state.tasks.filter((t) => {
-      if (t.status !== 'under_review') return false;
-      const step = t.steps.find((s) => s.status === 'pending');
-      return step?.approverId === state.user.id;
-    }).length;
+    const pending = state.pendingCount;
     return `
       <div class="topbar">
         <div class="brand"><span class="dot"></span>approve.mira</div>
         <div class="pill-nav">
-          <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">My queue${pending ? `<span class="badge">${pending}</span>` : ''}</button>
+          <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">For me${pending ? `<span class="badge">${pending}</span>` : ''}</button>
           <button class="pill ${state.scope === 'submitted' ? 'active' : ''}" data-scope="submitted">Submitted</button>
-          <button class="pill ${state.scope === 'mine' ? 'active' : ''}" data-scope="mine">All mine</button>
-          ${isExec ? `<button class="pill ${state.scope === 'all' ? 'active' : ''}" data-scope="all">All tasks</button>` : ''}
+          <button class="pill ${state.scope === 'history' ? 'active' : ''}" data-scope="history">History</button>
+          <button class="pill ${state.scope === 'new' ? 'active' : ''}" data-scope="new">New</button>
           ${isAdmin ? `<button class="pill ${state.route.path === '/admin' ? 'active' : ''}" id="navAdmin">Admin</button>` : ''}
         </div>
         <div class="spacer"></div>
-        ${state.route.path.startsWith('/task/') || state.route.path === '/admin' ? `<button class="pill" id="backHome">← Home</button>` : `
-        <div class="pill-nav">
-          <button class="pill ${state.category === 'all' ? 'active' : ''}" data-cat="all">All</button>
-          <button class="pill ${state.category === 'payments' ? 'active' : ''}" data-cat="payments">Payments</button>
-          <button class="pill ${state.category === 'content' ? 'active' : ''}" data-cat="content">Content</button>
-          <button class="pill ${state.category === 'other' ? 'active' : ''}" data-cat="other">Other</button>
-        </div>`}
+        ${state.route.path.startsWith('/task/') || state.route.path === '/admin' ? `<button class="pill" id="backHome">← Home</button>` : ''}
         <button class="icon-btn" id="bellBtn" title="Notifications">${bellSvg()}${state.unread ? '<span class="badge-dot"></span>' : ''}</button>
         <div class="avatar" id="profileBtn" title="Profile">${esc((state.user.name || '?').slice(0,1).toUpperCase())}</div>
       </div>`;
@@ -539,78 +701,139 @@
   function renderRoute() {
     if (state.route.segs[0] === 'task') return renderTaskDetail(state.route.segs[1]);
     if (state.route.path === '/admin') return renderAdmin();
+    if (state.scope === 'new') return renderNewPage();
     return renderHome();
   }
 
-  // ─── Home: drafts panel + task list ───
+  // ─── Filters bar ───
+  function renderFiltersBar(tasksForOptions) {
+    const f = state.filters;
+    const opts = filterOptionsFromTasks(tasksForOptions);
+    const businessOpts = state.projects.map((p) => ({ value: 'id:' + p.id, label: p.name }));
+    const submitters = [...new Set(tasksForOptions.map((t) => t.submitterId))]
+      .map((id) => state.users.find((u) => u.id === id))
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const hasFilters = Object.values(f).some(Boolean);
+    return `
+      <div class="filters-bar">
+        <div class="filter-field">
+          <label>Business</label>
+          <select class="select filter-ctrl" data-filter="business">
+            <option value="">All businesses</option>
+            ${businessOpts.map((o) => `<option value="${esc(o.value)}" ${f.business === o.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Department</label>
+          <select class="select filter-ctrl" data-filter="departmentId">
+            <option value="">All departments</option>
+            ${state.departments.map((d) => `<option value="${d.id}" ${f.departmentId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>From</label>
+          <select class="select filter-ctrl" data-filter="submitterId">
+            <option value="">Anyone</option>
+            ${submitters.map((u) => `<option value="${u.id}" ${f.submitterId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Country</label>
+          <select class="select filter-ctrl" data-filter="country">
+            <option value="">All countries</option>
+            ${opts.countries.map((c) => `<option value="${esc(c)}" ${f.country === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field filter-dates">
+          <label>Created</label>
+          <div class="filter-dates-row">
+            <input class="input filter-ctrl" type="date" data-filter="dateFrom" value="${esc(f.dateFrom)}" title="From" />
+            <input class="input filter-ctrl" type="date" data-filter="dateTo" value="${esc(f.dateTo)}" title="To" />
+          </div>
+        </div>
+        <div class="filter-field">
+          <label>Payment type</label>
+          <select class="select filter-ctrl" data-filter="paymentType">
+            <option value="">All types</option>
+            <option value="payment" ${f.paymentType === 'payment' ? 'selected' : ''}>Payment</option>
+            <option value="postpayment" ${f.paymentType === 'postpayment' ? 'selected' : ''}>Postpayment</option>
+            <option value="refund" ${f.paymentType === 'refund' ? 'selected' : ''}>Refund</option>
+          </select>
+        </div>
+        ${hasFilters ? `<button class="btn btn-ghost filters-clear" id="clearFiltersBtn" type="button">Clear filters</button>` : ''}
+      </div>`;
+  }
+
+  // ─── Home: task list with filters + summary ───
   function renderHome() {
-    const filteredTasks = state.tasks.filter((t) => state.category === 'all' || t.category === state.category);
-    const drafts = state.drafts || [];
+    const filteredTasks = applyTaskFilters(state.tasks);
+    const hasAnyTasks = state.tasks.length > 0;
+    const scopeHint = {
+      pending: 'No approvals waiting on you.',
+      submitted: 'No active tasks you submitted or are involved in.',
+      history: 'No tasks in your history yet.',
+      all: 'No tasks across the company yet.',
+    }[state.scope] || '';
 
     let html = '';
-
-    // Top: create CTA + drafts panel (only when no category filter and on default scope)
-    if (state.category === 'all') {
-      html += `
-        <div class="card card-dark" style="margin-bottom: 16px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap;">
-          <div>
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Create a new approval</div>
-            <div style="color: #9aa0a6; font-size: 13px;">Describe it in your own words, dictate, or attach files. AI will draft it.</div>
-          </div>
-          <button class="btn btn-primary" id="newApprovalBtn" style="padding: 12px 22px;">+ New approval</button>
-        </div>`;
-
-      if (drafts.length) {
-        html += `
-          <div class="card" style="margin-bottom: 16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-              <h3 style="margin:0;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Drafts waiting to finish (${drafts.length})</h3>
-            </div>
-            <div class="grid" style="gap: 8px;">
-              ${drafts.map((d) => `
-                <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
-                    <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}${d.slackMessage ? 'Slack' : 'Direct'} · ${fmtAgo(d.createdAt)}</div>
-                  </div>
-                  <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish →</button>
-                  <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
-                </div>
-              `).join('')}
-            </div>
-          </div>`;
-      }
-    }
+    if (hasAnyTasks) html += renderFiltersBar(state.tasks);
 
     if (!filteredTasks.length) {
-      html += `<div class="empty"><h3>Nothing here yet</h3><p>${state.scope === 'pending' ? 'No approvals waiting on you. ' : ''}${state.category !== 'all' ? `No ${categoryLabel(state.category)} tasks. ` : ''}Click + to create one or send a message from Slack.</p></div>`;
+      const filterNote = Object.values(state.filters).some(Boolean) ? ' Try adjusting the filters.' : '';
+      html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Open the <b>New</b> tab to create an approval, or send a message from Slack.</p></div>`;
       return html;
     }
+
+    html += renderListSummary(filteredTasks);
     html += `<div class="grid" style="gap: 12px;">${filteredTasks.map((t) => renderTaskCard(t)).join('')}</div>`;
     return html;
   }
-  function renderTaskCard(t) {
-    const submitter = userName(t.submitterId);
-    const step = t.steps.find((s) => s.status === 'pending');
-    const stepInfo = t.status === 'awaiting_transfer' ? 'Awaiting Finance' : t.status === 'transferred' ? 'Transferred' : step ? `Step ${step.stepNumber}/${t.steps.length} · ${userName(step.approverId)}` : `${t.steps.length} step${t.steps.length>1?'s':''}`;
-    const amount = t.category === 'payments' && t.fields?.amount ? `<span class="chip chip-dim">${t.fields.amount} ${esc(t.fields.currency || '')}</span>` : '';
-    const pType = t.category === 'payments' && t.fields?.paymentType && t.fields.paymentType !== 'payment' ? `<span class="chip chip-dim">${paymentTypeLabel(t.fields.paymentType)}</span>` : '';
-    const proj = projectLabel(t);
+
+  function renderListSummary(tasks) {
+    const { count, totalsStr } = computeListSummary(tasks);
+    const nLabel = count === 1 ? 'request' : 'requests';
     return `
-      <div class="card card-hover" style="cursor:pointer" onclick="location.hash='#/task/${t.id}'">
-        <div class="card-row">
-          <div style="flex:1; min-width:0;">
-            <div class="card-row" style="gap:10px; margin-bottom: 6px; flex-wrap: wrap;">
-              <span class="chip chip-dim">${categoryLabel(t.category)}</span>
-              ${pType}
-              ${statusChip(t)}
-              ${amount}
-              ${proj ? `<span class="chip chip-dim">📁 ${esc(proj)}</span>` : ''}
-              ${t.source === 'slack' ? '<span class="chip chip-dim">Slack</span>' : ''}
-            </div>
-            <div class="card-title">${esc(t.title)}</div>
-            <div class="card-meta" style="margin-top: 6px;">From ${esc(submitter)} · ${stepInfo} · ${fmtAgo(t.updatedAt || t.createdAt)}</div>
-          </div>
+      <div class="list-summary">
+        <div class="count">${count}<span>${nLabel}</span></div>
+        ${totalsStr ? `<div class="totals"><span class="totals-label">Total</span>${esc(totalsStr)}</div>` : ''}
+      </div>`;
+  }
+
+  function renderTaskCard(t) {
+    const step = t.steps.find((s) => s.status === 'pending');
+    const canQuickApprove = state.scope === 'pending' && t.status === 'under_review' && step?.approverId === state.user?.id;
+    const business = projectLabel(t);
+    const dept = submitterDeptName(t);
+    const waiting = fmtHoursWaiting(t);
+    const stage = currentStageLabel(t);
+    const closed = isTaskClosed(t);
+    const desc = taskDescription(t);
+    const isPayment = t.category === 'payments' && t.fields?.amount != null && Number.isFinite(Number(t.fields.amount));
+    const amountBlock = isPayment
+      ? `<div class="task-card-amount">${Number(t.fields.amount).toLocaleString(undefined, { maximumFractionDigits: 2 })}<span class="cur">${esc(t.fields.currency || '')}</span></div>`
+      : `<div class="task-card-amount empty">${esc(categoryLabel(t.category))}</div>`;
+
+    const tags = [];
+    if (business) tags.push(`<span class="chip chip-dim">${esc(business)}</span>`);
+    if (dept) tags.push(`<span class="chip chip-dim">${esc(dept)}</span>`);
+    if (!closed && waiting) tags.push(`<span class="chip chip-yellow">${esc(waiting)}</span>`);
+    if (!closed && stage) tags.push(`<span class="chip chip-dim">${esc(stage)}</span>`);
+    if (closed) tags.push(statusChip(t));
+    if (t.category === 'payments' && t.fields?.paymentType && t.fields.paymentType !== 'payment') {
+      tags.push(`<span class="chip chip-dim">${paymentTypeLabel(t.fields.paymentType)}</span>`);
+    }
+
+    return `
+      <div class="card task-card">
+        <div class="task-card-main" data-open-task="${esc(t.id)}">
+          <div class="task-card-tags">${tags.join('')}</div>
+          <div class="task-card-title">${esc(t.title)}</div>
+          <div class="task-card-desc">${esc(desc)}</div>
+        </div>
+        <div class="task-card-side">
+          ${amountBlock}
+          ${canQuickApprove ? `<button type="button" class="btn-approve" data-quick-approve="${esc(t.id)}">Approve</button>` : ''}
         </div>
       </div>`;
   }
@@ -764,12 +987,13 @@
     const f = t.fields || {};
     const rows = [];
     const projDisplay = projectLabel(t);
-    if (projDisplay) rows.push(['Project', esc(projDisplay)]);
+    if (projDisplay) rows.push(['Business', esc(projDisplay)]);
     if (t.category === 'payments') {
       rows.push(['Payment type', `<span class="chip chip-dim">${paymentTypeLabel(f.paymentType || 'payment')}</span>`]);
       rows.push(['Amount', f.amount ? `${f.amount} ${esc(f.currency || '')}` : '—']);
       rows.push(['Vendor', esc(f.vendor || '—')]);
       rows.push(['Purpose', esc(f.purpose || '—')]);
+      if (f.country) rows.push(['Country', esc(f.country)]);
       if (f.dueDate) rows.push(['Due', esc(f.dueDate)]);
     } else if (t.category === 'content') {
       rows.push(['Link', f.link ? `<a href="${esc(f.link)}" target="_blank">${esc(f.link)}</a>` : '—']);
@@ -851,129 +1075,273 @@
     _ai = { phase: 'describe', messages: [], images: [], files: [], proposed: null, question: null, error: null, draftId: null, sourceDraft: null, recording: false };
   }
 
-  function renderNewTaskModal() {
-    if (_ai.phase === 'describe' || _ai.phase === 'thinking' || _ai.phase === 'ask') {
-      return renderAIConversationModal();
-    }
-    return renderAIReviewModal();
+  // ─── NEW tab: pick mode → Fill or AI ───
+  let _manual = {
+    feedback: null,
+    checking: false,
+    error: null,
+    validateReply: '',
+    draft: emptyManualDraft(),
+  };
+  function emptyManualDraft() {
+    return { title: '', category: 'payments', description: '', fields: {}, approverIds: [] };
+  }
+  function resetManual() {
+    _manual = { feedback: null, checking: false, error: null, validateReply: '', draft: emptyManualDraft() };
+  }
+  function resetNewPage() {
+    resetAI();
+    resetManual();
+    state.newCreationMode = null;
+  }
+  function snapshotManualDraft() {
+    const titleEl = document.getElementById('newTitle');
+    if (!titleEl) return;
+    const catEl = document.getElementById('newCategory');
+    const descEl = document.getElementById('newDescription');
+    _manual.draft = {
+      title: titleEl.value,
+      category: catEl?.value || 'other',
+      description: descEl?.value || '',
+      fields: gatherCategoryFields(catEl?.value || 'other'),
+      approverIds: Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value),
+    };
   }
 
-  function renderAIConversationModal() {
-    const isFirst = !_ai.messages.length;
-    const lastUserMsgs = _ai.messages.filter((m) => m.role === 'user').map((m) => typeof m.content === 'string' ? m.content : (m.content.find((b) => b.type === 'text')?.text || ''));
+  function renderSlackDraftsPanel() {
+    const drafts = state.drafts || [];
+    if (!drafts.length) return '';
     return `
-      <div class="scrim">
-        <div class="modal" style="max-width: 640px;">
-          <div class="modal-header">
-            <h2>${_ai.sourceDraft ? 'Finish draft' : 'New approval'}</h2>
-            <button class="close" id="closeModal">×</button>
-          </div>
-
-          ${_ai.sourceDraft ? `<div class="card" style="margin-bottom: 14px; background: var(--card-2);">
-            <div class="card-meta">${_ai.sourceDraft.senderName ? 'From Slack: ' + esc(_ai.sourceDraft.senderName) : 'From Slack'}</div>
-            <div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(_ai.sourceDraft.description)}</div>
-          </div>` : ''}
-
-          ${lastUserMsgs.length > 1 ? lastUserMsgs.slice(0, -1).map((t) => `
-            <div class="card" style="background: var(--card-2); margin-bottom: 8px; font-size: 13px;">
-              <div class="card-meta">You said</div><div style="margin-top: 4px; white-space: pre-wrap;">${esc(t)}</div>
-            </div>`).join('') : ''}
-
-          ${_ai.phase === 'ask' && _ai.question ? `
-            <div class="card card-dark" style="margin-bottom: 14px;">
-              <div class="card-meta" style="color:#d9f03a;">AI asks</div>
-              <div style="margin-top: 6px; font-size: 14px;">${esc(_ai.question)}</div>
-            </div>` : ''}
-
-          ${_ai.phase === 'thinking' ? `
-            <div style="text-align:center; padding: 30px 0;">
-              <span class="spin"></span><div style="margin-top: 10px; color: var(--text-dim);">Thinking…</div>
+      <div class="card" style="margin-bottom: 20px;">
+        <h3 style="margin:0 0 12px;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">From Slack — finish (${drafts.length})</h3>
+        <div class="grid" style="gap: 8px;">
+          ${drafts.map((d) => `
+            <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
+                <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}Slack · ${fmtAgo(d.createdAt)}</div>
+              </div>
+              <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish with AI →</button>
+              <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
             </div>
-          ` : `
-            <div class="field">
-              <label>${_ai.phase === 'ask' ? 'Your reply' : (isFirst ? 'Describe the request' : 'Add more details')}</label>
-              <textarea class="textarea" id="aiInput" rows="4" placeholder="${isFirst ? 'e.g. Need to pay Adobe \$240 USD for next year\'s Creative Cloud subscription, invoice attached. Or just speak.' : 'Answer the question above…'}">${esc(_ai.sourceDraft && isFirst ? _ai.sourceDraft.description : '')}</textarea>
-            </div>
-
-            <div class="card-row" style="gap: 10px; flex-wrap: wrap;">
-              <button class="btn" id="recordBtn">${_ai.recording ? '⏹ Stop recording' : '🎤 Dictate'}</button>
-              <button class="btn" id="attachFilesBtn">📎 Add files</button>
-              <input type="file" id="aiFileInput" multiple style="display:none;" accept="*/*" />
-              <span style="flex:1"></span>
-              <span class="card-meta" id="aiFileCount">${_ai.files.length ? _ai.files.length + ' file' + (_ai.files.length>1?'s':'') + ' attached' : ''}${_ai.images.length ? (_ai.files.length ? ' · ' : '') + _ai.images.length + ' image' + (_ai.images.length>1?'s':'') + ' for AI' : ''}</span>
-            </div>
-
-            ${_ai.files.length ? `<div style="margin-top: 10px;">${_ai.files.map((f, i) => `
-              <div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span><button class="btn-ghost" data-rm-file="${i}" style="padding: 2px 6px; color: var(--danger); border: none; background: transparent; cursor: pointer;">×</button></div>
-            `).join('')}</div>` : ''}
-          `}
-
-          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
-
-          <div class="modal-footer">
-            <button class="btn" id="cancelNew">Cancel</button>
-            ${_ai.phase !== 'thinking' ? `<button class="btn btn-primary" id="aiSubmit">${isFirst ? 'Draft with AI' : 'Send reply'}</button>` : ''}
-          </div>
+          `).join('')}
         </div>
       </div>`;
   }
 
-  function renderAIReviewModal() {
+  function renderNewPage() {
+    if (!state.newCreationMode) {
+      return `
+        <div class="new-page-header">
+          <h1>New approval</h1>
+          <p class="card-meta">Fill in the details yourself, or let AI guide you through a short conversation.</p>
+        </div>
+        ${renderSlackDraftsPanel()}
+        <div class="mode-pick">
+          <div class="mode-card" id="pickManual">
+            <div class="mode-icon">✎</div>
+            <h3>Fill in yourself</h3>
+            <p>Enter all fields, then AI checks your draft — tells you what's required and what to add. Submit when AI says it's ready.</p>
+          </div>
+          <div class="mode-card" id="pickAI">
+            <div class="mode-icon">✦</div>
+            <h3>Create with AI</h3>
+            <p>Describe what you need in chat (or dictate). AI asks one or two questions, then drafts the request for you to review.</p>
+          </div>
+        </div>`;
+    }
+    if (state.newCreationMode === 'ai') return renderNewAIPage();
+    return renderNewManualPage();
+  }
+
+  function renderNewAIPage() {
+    if (_ai.phase === 'review') return renderNewAIReviewSection();
+    return `
+      <div class="new-page-header card-row" style="align-items: flex-start;">
+        <div style="flex:1;">
+          <h1>Create with AI</h1>
+          <p class="card-meta">Answer AI's questions — it'll draft the approval for you.</p>
+        </div>
+        <button class="btn btn-ghost" id="backToModePick">← Change method</button>
+      </div>
+      <div class="card">
+        ${_ai.sourceDraft ? `<div class="card" style="margin-bottom: 14px; background: var(--card-2);">
+          <div class="card-meta">${_ai.sourceDraft.senderName ? 'From Slack: ' + esc(_ai.sourceDraft.senderName) : 'From Slack'}</div>
+          <div style="margin-top: 6px; white-space: pre-wrap; font-size: 13px;">${esc(_ai.sourceDraft.description)}</div>
+        </div>` : ''}
+        ${renderAIChatThread()}
+        ${_ai.phase === 'ask' && _ai.question ? `
+          <div class="chat-bubble ai"><div class="label">AI asks</div><div>${esc(_ai.question)}</div></div>` : ''}
+        ${_ai.phase === 'thinking' ? `
+          <div style="text-align:center; padding: 24px 0;">
+            <span class="spin"></span><div style="margin-top: 10px; color: var(--text-dim);">Thinking…</div>
+          </div>` : `
+          <div class="field">
+            <label>${_ai.phase === 'ask' ? 'Your reply' : 'Describe the request'}</label>
+            <textarea class="textarea" id="aiInput" rows="4" placeholder="e.g. Pay Adobe \$240 USD for Creative Cloud renewal, invoice attached…">${esc(_ai.sourceDraft && !_ai.messages.length ? (_ai.sourceDraft.description || '') : '')}</textarea>
+          </div>
+          <div class="card-row" style="gap: 10px; flex-wrap: wrap; margin-bottom: 8px;">
+            <button class="btn" id="recordBtn">${_ai.recording ? '⏹ Stop' : '🎤 Dictate'}</button>
+            <button class="btn" id="attachFilesBtn">📎 Files</button>
+            <input type="file" id="aiFileInput" multiple style="display:none;" accept="*/*" />
+            <span class="card-meta">${_ai.files.length ? _ai.files.length + ' file(s)' : ''}${_ai.images.length ? (_ai.files.length ? ' · ' : '') + _ai.images.length + ' image(s) for AI' : ''}</span>
+          </div>
+          ${_ai.files.length ? _ai.files.map((f, i) => `
+            <div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span>
+              <button class="btn-ghost" data-rm-file="${i}" style="padding:2px 6px;color:var(--danger);border:none;background:transparent;cursor:pointer;">×</button>
+            </div>`).join('') : ''}
+        `}
+        ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+        ${_ai.phase !== 'thinking' ? `
+        <div class="form-actions" style="margin-top:20px;">
+          <div class="actions-row">
+            <p class="actions-hint">${_ai.phase === 'ask' ? 'Answer the question, then send your reply.' : 'Describe the request — attach files or dictate if helpful.'}</p>
+            <button class="btn btn-primary" id="aiSubmit">${_ai.messages.length ? 'Send reply' : 'Start conversation'}</button>
+          </div>
+        </div>` : ''}
+      </div>`;
+  }
+
+  function renderAIChatThread() {
+    const turns = [];
+    _ai.messages.forEach((m) => {
+      if (m.role === 'user') {
+        const text = typeof m.content === 'string' ? m.content : '';
+        turns.push(`<div class="chat-bubble user">${esc(text)}</div>`);
+      } else if (m.role === 'assistant') {
+        try {
+          const j = JSON.parse(typeof m.content === 'string' ? m.content : '{}');
+          if (j.question) turns.push(`<div class="chat-bubble ai"><div class="label">AI</div>${esc(j.question)}</div>`);
+        } catch { /* skip */ }
+      }
+    });
+    return turns.length ? `<div class="ai-chat-thread">${turns.join('')}</div>` : '';
+  }
+
+  function renderNewAIReviewSection() {
     const p = _ai.proposed || {};
     return `
-      <div class="scrim">
-        <div class="modal">
-          <div class="modal-header">
-            <h2>Review & submit</h2>
-            <button class="close" id="closeModal">×</button>
+      <div class="new-page-header card-row">
+        <div style="flex:1;"><h1>Review & submit</h1><p class="card-meta">AI drafted this. Edit anything, then submit.</p></div>
+        <button class="btn btn-ghost" id="backToAIChat">← Refine with AI</button>
+      </div>
+      <div class="card">
+        <div class="field"><label>Title</label><input class="input" id="newTitle" value="${esc(p.title || '')}" /></div>
+        <div class="field"><label>Category</label>
+          <select class="select" id="newCategory">
+            <option value="payments" ${p.category === 'payments' ? 'selected' : ''}>Payments</option>
+            <option value="content" ${p.category === 'content' ? 'selected' : ''}>Content</option>
+            <option value="other" ${(!p.category || p.category === 'other') ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div id="categoryFields"></div>
+        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="3">${esc(p.fields?.description || '')}</textarea></div>
+        <div class="field"><label>Approval path</label>
+          <div class="step-builder" id="stepBuilder">
+            ${(p.suggestedApproverIds?.length ? p.suggestedApproverIds : ['']).map((id, i) => stepBuilderRowHTML(id, i + 1)).join('')}
           </div>
-          <p class="card-meta" style="margin-top:-8px;margin-bottom:14px;">AI drafted this from what you told it. Edit anything before submitting.</p>
-
-          <div class="field">
-            <label>Title</label>
-            <input class="input" id="newTitle" value="${esc(p.title || '')}" />
-          </div>
-          <div class="field">
-            <label>Category</label>
-            <select class="select" id="newCategory">
-              <option value="payments" ${p.category === 'payments' ? 'selected' : ''}>Payments</option>
-              <option value="content" ${p.category === 'content' ? 'selected' : ''}>Content</option>
-              <option value="other" ${(!p.category || p.category === 'other') ? 'selected' : ''}>Other</option>
-            </select>
-          </div>
-          <div id="categoryFields"></div>
-          <div class="field">
-            <label>Approval path</label>
-            <div class="help" style="margin-top: 4px;">Each approver acts in order. Drag/edit as needed.</div>
-            <div class="step-builder" id="stepBuilder">
-              ${(p.suggestedApproverIds && p.suggestedApproverIds.length ? p.suggestedApproverIds : ['']).map((id, i) => stepBuilderRowHTML(id, i + 1)).join('')}
-            </div>
-            <button class="btn" id="addStep">+ Add step</button>
-          </div>
-          ${_ai.files.length ? `<div class="field"><label>Attachments (${_ai.files.length})</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span><span class="size">${fmtBytes(f.size)}</span></div>`).join('')}</div>` : ''}
-
-          ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
-
-          <div class="modal-footer">
-            <button class="btn" id="backToAI">← Refine with AI</button>
+          <button class="btn" id="addStep" style="margin-top:8px;">+ Add step</button>
+        </div>
+        ${_ai.files.length ? `<div class="field"><label>Attachments</label>${_ai.files.map((f) => `<div class="file-row"><span class="name">${esc(f.name)}</span></div>`).join('')}</div>` : ''}
+        ${_ai.error ? `<div class="error">${esc(_ai.error)}</div>` : ''}
+        <div class="form-actions">
+          <div class="actions-row">
+            <p class="actions-hint"><strong>Almost done.</strong> Edit the draft if needed, then submit.</p>
             <button class="btn btn-primary" id="submitFinal">Submit for approval</button>
           </div>
         </div>
       </div>`;
   }
 
-  function projectFieldHTML(selectedId, selectedName) {
+  function renderManualWorkflowSteps() {
+    const fb = _manual.feedback;
+    const step1 = fb ? 'done' : 'active';
+    const step2 = !fb ? '' : (fb.ready ? 'done' : 'active');
+    const step3 = fb?.ready ? 'active' : '';
+    return `
+      <div class="workflow-steps">
+        <span class="workflow-step ${step1}"><span class="num">1</span> Fill in details</span>
+        <span class="workflow-step ${step2}"><span class="num">2</span> AI check</span>
+        <span class="workflow-step ${step3}"><span class="num">3</span> Submit</span>
+      </div>`;
+  }
+
+  function renderNewManualPage() {
+    const fb = _manual.feedback;
+    const canSubmit = !!fb?.ready;
+    const d = _manual.draft || emptyManualDraft();
+    const approvers = d.approverIds && d.approverIds.length ? d.approverIds : [''];
+    return `
+      <div class="new-page-header card-row">
+        <div style="flex:1;">
+          <h1>Fill in yourself</h1>
+          <p class="card-meta">Complete every field, run AI check, then submit when marked ready.</p>
+        </div>
+        <button class="btn btn-ghost" id="backToModePick">← Change method</button>
+      </div>
+      <div class="card">
+        ${renderManualWorkflowSteps()}
+        <div class="form-section-title">Request</div>
+        <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" value="${esc(d.title || '')}" /></div>
+        <div class="field"><label>Category</label>
+          <select class="select" id="newCategory">
+            <option value="payments" ${d.category === 'payments' ? 'selected' : ''}>Payments</option>
+            <option value="content" ${d.category === 'content' ? 'selected' : ''}>Content</option>
+            <option value="other" ${d.category === 'other' ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div id="categoryFields"></div>
+        <div class="field"><label>Description</label><textarea class="textarea" id="newDescription" rows="4" placeholder="Context, background, anything approvers should know">${esc(d.description || '')}</textarea></div>
+        <div class="form-section-title">Approval path</div>
+        <div class="step-builder" id="stepBuilder">${approvers.map((id, i) => stepBuilderRowHTML(id || '', i + 1)).join('')}</div>
+        <button class="btn" id="addStep" style="margin-top:10px;">+ Add approver step</button>
+
+        ${_manual.checking ? `<div class="ai-checking"><span class="spin"></span><div class="card-meta" style="margin-top:10px;">AI is reviewing your draft…</div></div>` : ''}
+
+        ${fb && !_manual.checking ? `
+          <div class="form-section-title">AI review</div>
+          ${fb.required?.length ? `<div class="ai-feedback required"><b>Must add</b><ul>${fb.required.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.suggestions?.length ? `<div class="ai-feedback suggestions"><b>Suggestions</b><ul>${fb.suggestions.map((s) => `<li>${esc(s)}</li>`).join('')}</ul></div>` : ''}
+          ${fb.ready ? `<div class="ai-feedback ok-panel"><b>Ready to submit</b>All required fields passed. Re-run check if you change anything.</div>` : ''}
+          ${fb.question ? `
+            <div class="ai-feedback" style="border-left:4px solid var(--accent);">
+              <b>AI asks</b><p style="margin:8px 0 0;font-size:13px;">${esc(fb.question)}</p>
+              <div class="field" style="margin-top:12px;margin-bottom:0;">
+                <label>Your answer</label>
+                <textarea class="textarea" id="validateReply" rows="2" placeholder="Optional — then re-run Check with AI">${esc(_manual.validateReply)}</textarea>
+              </div>
+            </div>` : ''}
+        ` : ''}
+
+        ${_manual.error ? `<div class="error" style="margin-top:14px;">${esc(_manual.error)}</div>` : ''}
+
+        <div class="form-actions">
+          <div class="actions-row">
+            <p class="actions-hint">${canSubmit
+              ? '<strong>Ready.</strong> Submit sends this into the approval flow.'
+              : fb
+                ? 'Fix <strong>Must add</strong> items above, then <strong>Check with AI</strong> again.'
+                : 'Fill in the form, then <strong>Check with AI</strong> before you can submit.'}</p>
+            <span class="submit-status ${canSubmit ? 'ready' : 'locked'}">${canSubmit ? '✓ Ready' : 'Submit locked'}</span>
+            <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
+            <button class="btn btn-primary" id="submitManual" ${canSubmit ? '' : 'disabled'}>Submit for approval</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function businessFieldHTML(selectedId, selectedName) {
     const opts = state.projects.map((p) => `<option value="${p.id}" ${selectedId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
     const isOther = !selectedId && selectedName;
     return `
       <div class="field">
-        <label>Project (on whose behalf)</label>
+        <label>Business (paid on behalf of)</label>
         <select class="select" id="fProjectId">
-          <option value="">— pick a project —</option>
+          <option value="">— pick a business —</option>
           ${opts}
           <option value="__other" ${isOther ? 'selected' : ''}>+ Other (type below)</option>
         </select>
-        <input class="input" id="fProjectName" placeholder="Custom project name…" style="margin-top: 8px; display: ${isOther ? 'block' : 'none'};" value="${esc(selectedName || '')}" />
+        <input class="input" id="fProjectName" placeholder="Custom business name…" style="margin-top: 8px; display: ${isOther ? 'block' : 'none'};" value="${esc(selectedName || '')}" />
       </div>`;
   }
 
@@ -996,12 +1364,13 @@
       </div>
       <div class="field"><label>Vendor / Recipient</label><input class="input" id="fVendor" /></div>
       <div class="field"><label>Purpose</label><input class="input" id="fPurpose" /></div>
-      ${projectFieldHTML('', '')}
+      ${businessFieldHTML('', '')}
+      <div class="field"><label>Country</label><input class="input" id="fCountry" placeholder="e.g. UAE, KSA" /></div>
       <div class="field"><label>Due date (optional)</label><input class="input" id="fDueDate" type="date" /></div>`;
     if (category === 'content') return `
       <div class="field"><label>Link (URL)</label><input class="input" id="fLink" /></div>
-      ${projectFieldHTML('', '')}`;
-    return projectFieldHTML('', '');
+      ${businessFieldHTML('', '')}`;
+    return businessFieldHTML('', '');
   }
 
   function bindProjectField() {
@@ -1037,7 +1406,7 @@
     const projName = document.getElementById('fProjectName');
     let projectId = null, projectName = '';
     if (projSel) {
-      if (projSel.value === '__other') projectName = projName.value.trim();
+      if (projSel.value === '__other') projectName = (projName?.value || '').trim();
       else if (projSel.value) projectId = projSel.value;
     }
     const common = { projectId, projectName };
@@ -1045,16 +1414,17 @@
     if (category === 'payments') {
       return {
         ...common,
-        paymentType: document.getElementById('fPaymentType').value,
-        amount: document.getElementById('fAmount').value || null,
-        currency: document.getElementById('fCurrency').value,
-        vendor: document.getElementById('fVendor').value.trim(),
-        purpose: document.getElementById('fPurpose').value.trim(),
-        dueDate: document.getElementById('fDueDate').value || null,
+        paymentType: document.getElementById('fPaymentType')?.value || 'payment',
+        amount: document.getElementById('fAmount')?.value || null,
+        currency: document.getElementById('fCurrency')?.value || 'AED',
+        vendor: (document.getElementById('fVendor')?.value || '').trim(),
+        purpose: (document.getElementById('fPurpose')?.value || '').trim(),
+        country: (document.getElementById('fCountry')?.value || '').trim(),
+        dueDate: document.getElementById('fDueDate')?.value || null,
       };
     }
     if (category === 'content') {
-      return { ...common, link: document.getElementById('fLink').value.trim() };
+      return { ...common, link: (document.getElementById('fLink')?.value || '').trim() };
     }
     return common;
   }
@@ -1223,36 +1593,75 @@
 
   // ─── Binders ───
   function bindMain() {
-    // Pills (scope + category)
+    // Scope tabs (For me / Submitted / History / New / Admin)
     document.querySelectorAll('.pill[data-scope]').forEach((el) => {
       el.onclick = async () => {
-        state.scope = el.dataset.scope;
+        const next = el.dataset.scope;
+        if (next !== 'new') state.newCreationMode = null;
+        state.scope = next;
         nav('/');
         await refreshAll();
         render();
       };
     });
-    document.querySelectorAll('.pill[data-cat]').forEach((el) => {
-      el.onclick = () => { state.category = el.dataset.cat; render(); };
+
+    // Filter controls (list tabs only)
+    document.querySelectorAll('.filter-ctrl').forEach((el) => {
+      const key = el.dataset.filter;
+      const apply = () => { state.filters[key] = el.value; render(); };
+      el.onchange = apply;
+      if (el.type === 'date') el.oninput = apply;
     });
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) clearFiltersBtn.onclick = () => { clearFilters(); render(); };
+
+    // Task card open + quick approve
+    document.querySelectorAll('[data-open-task]').forEach((el) => {
+      el.onclick = () => { nav('/task/' + el.dataset.openTask); };
+    });
+    document.querySelectorAll('[data-quick-approve]').forEach((btn) => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.quickApprove;
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          await api('/api/tasks/' + id + '/act', { method: 'POST', body: { action: 'approve', comment: '' } });
+          delete _taskCache[id];
+          await refreshAll();
+          render();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = 'Approve';
+          state.flash = `<h2 style="margin-top:0">Could not approve</h2><p>${esc(err.message)}</p>`;
+          render();
+        }
+      };
+    });
+
     const navAdmin = document.getElementById('navAdmin');
     if (navAdmin) navAdmin.onclick = () => nav('/admin');
     const backHome = document.getElementById('backHome');
-    if (backHome) backHome.onclick = () => nav('/');
+    if (backHome) backHome.onclick = async () => {
+      if (state.scope === 'new') state.scope = 'pending';
+      nav('/');
+      await refreshAll();
+      render();
+    };
 
-    document.getElementById('fab').onclick = startNewApproval;
-    const newApprovalBtn = document.getElementById('newApprovalBtn');
-    if (newApprovalBtn) newApprovalBtn.onclick = startNewApproval;
-
-    // Drafts panel — finish or delete
+    // Drafts panel buttons (only rendered on New tab now)
     document.querySelectorAll('[data-finish-draft]').forEach((b) => {
       b.onclick = () => {
         const draft = state.drafts.find((d) => d.id === b.dataset.finishDraft);
         if (!draft) return;
         resetAI();
+        resetManual();
         _ai.sourceDraft = draft;
         _ai.draftId = draft.id;
-        state.modalOpen = 'new';
+        state.scope = 'new';
+        state.newCreationMode = 'ai';
+        nav('/');
         render();
       };
     });
@@ -1264,13 +1673,14 @@
         render();
       };
     });
+
     document.getElementById('bellBtn').onclick = openInbox;
     document.getElementById('profileBtn').onclick = () => { state.drawerOpen = true; _connectInfo = {}; render(); };
 
     const flashOk = document.getElementById('flashOk');
     if (flashOk) flashOk.onclick = () => { state.flash = null; render(); };
 
-    if (state.modalOpen === 'new') bindNewTaskModal();
+    if (state.scope === 'new') bindNewPage();
     if (state.modalOpen === 'admin-user') bindAdminUserModal();
     if (state.drawerOpen) bindDrawer();
     if (state.route.path === '/admin') bindAdmin();
@@ -1332,50 +1742,151 @@
     };
   }
 
-  function bindNewTaskModal() {
-    // Wire up: based on phase, different controls exist.
-    document.getElementById('closeModal').onclick = closeAIModal;
-    const cancelBtn = document.getElementById('cancelNew');
-    if (cancelBtn) cancelBtn.onclick = closeAIModal;
+  function bindNewPage() {
+    const pickManual = document.getElementById('pickManual');
+    const pickAI = document.getElementById('pickAI');
+    if (pickManual) pickManual.onclick = () => { state.newCreationMode = 'manual'; resetManual(); render(); };
+    if (pickAI) pickAI.onclick = () => { state.newCreationMode = 'ai'; resetAI(); render(); };
 
-    if (_ai.phase === 'review') return bindAIReviewControls();
-    if (_ai.phase === 'thinking') return; // nothing to bind
+    const backPick = document.getElementById('backToModePick');
+    if (backPick) backPick.onclick = () => { resetNewPage(); render(); };
 
-    // describe / ask phase
+    if (state.newCreationMode === 'manual') return bindManualPage();
+    if (state.newCreationMode === 'ai') {
+      if (_ai.phase === 'review') return bindAIReviewControls();
+      bindAIChatControls();
+    }
+  }
+
+  function bindAIChatControls() {
     const aiSubmit = document.getElementById('aiSubmit');
     if (aiSubmit) aiSubmit.onclick = sendToAI;
-
     const recordBtn = document.getElementById('recordBtn');
     if (recordBtn) recordBtn.onclick = toggleRecording;
-
     const attachBtn = document.getElementById('attachFilesBtn');
-    if (attachBtn) attachBtn.onclick = () => document.getElementById('aiFileInput').click();
+    if (attachBtn) attachBtn.onclick = () => document.getElementById('aiFileInput')?.click();
     const fileInput = document.getElementById('aiFileInput');
     if (fileInput) fileInput.onchange = handleFileSelect;
-
     document.querySelectorAll('[data-rm-file]').forEach((b) => {
-      b.onclick = () => {
-        _ai.files.splice(Number(b.dataset.rmFile), 1);
-        render();
-      };
+      b.onclick = () => { _ai.files.splice(Number(b.dataset.rmFile), 1); render(); };
     });
-
-    // Auto-focus the textarea
     const ta = document.getElementById('aiInput');
     if (ta) setTimeout(() => ta.focus(), 50);
   }
 
-  function closeAIModal() {
-    if (_mediaRecorder && _mediaRecorder.state === 'recording') _mediaRecorder.stop();
-    resetAI();
-    state.modalOpen = null;
-    nav('/');
+  function bindManualFormSetup(prefill) {
+    const catEl = document.getElementById('newCategory');
+    const fieldsEl = document.getElementById('categoryFields');
+    if (!catEl || !fieldsEl) return;
+    function repaint() {
+      fieldsEl.innerHTML = renderCategoryFields(catEl.value);
+      bindPaymentTypeField();
+      bindProjectField();
+      if (prefill && catEl.value === prefill.category) {
+        const f = prefill.fields || {};
+        const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
+        if (catEl.value === 'payments') {
+          setVal('fPaymentType', f.paymentType);
+          setVal('fAmount', f.amount);
+          setVal('fCurrency', f.currency);
+          setVal('fVendor', f.vendor);
+          setVal('fPurpose', f.purpose);
+          setVal('fCountry', f.country);
+          setVal('fDueDate', f.dueDate);
+        } else if (catEl.value === 'content') {
+          setVal('fLink', f.link);
+        }
+        const projSel = document.getElementById('fProjectId');
+        const projName = document.getElementById('fProjectName');
+        if (projSel) {
+          if (f.projectId) projSel.value = f.projectId;
+          else if (f.projectName && projName) {
+            projSel.value = '__other';
+            projName.style.display = 'block';
+            projName.value = f.projectName;
+          }
+        }
+      }
+    }
+    repaint();
+    catEl.onchange = repaint;
+    const addStep = document.getElementById('addStep');
+    if (addStep) addStep.onclick = () => {
+      const b = document.getElementById('stepBuilder');
+      const div = document.createElement('div');
+      div.innerHTML = stepBuilderRowHTML('', b.children.length + 1);
+      b.appendChild(div.firstChild);
+      attachRowHandlers(b);
+    };
+    attachRowHandlers(document.getElementById('stepBuilder'));
   }
 
-  function startNewApproval() {
-    resetAI();
-    state.modalOpen = 'new';
+  function gatherManualDraft() {
+    const category = document.getElementById('newCategory')?.value || 'other';
+    const fields = gatherCategoryFields(category);
+    fields.description = (document.getElementById('newDescription')?.value || '').trim();
+    const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
+    return {
+      title: (document.getElementById('newTitle')?.value || '').trim(),
+      category,
+      fields,
+      approverIds,
+    };
+  }
+
+  function bindManualPage() {
+    bindManualFormSetup(_manual.draft);
+    const validateReply = document.getElementById('validateReply');
+    if (validateReply) validateReply.oninput = (e) => { _manual.validateReply = e.target.value; };
+    const checkBtn = document.getElementById('checkWithAI');
+    if (checkBtn) checkBtn.onclick = checkManualWithAI;
+    const submitBtn = document.getElementById('submitManual');
+    if (submitBtn) submitBtn.onclick = submitManualApproval;
+  }
+
+  async function checkManualWithAI() {
+    snapshotManualDraft();
+    const draft = gatherManualDraft();
+    if (!draft.title) { _manual.error = 'Add a title first.'; render(); return; }
+    _manual.error = null;
+    _manual.checking = true;
     render();
+    try {
+      const reply = (document.getElementById('validateReply')?.value || '').trim();
+      if (reply) draft.fields.description = (draft.fields.description ? draft.fields.description + '\n\n' : '') + reply;
+      const r = await api('/api/ai-draft', { method: 'POST', body: { mode: 'validate', draft } });
+      _manual.feedback = r;
+      _manual.validateReply = '';
+    } catch (e) {
+      _manual.error = e.message;
+    }
+    _manual.checking = false;
+    render();
+  }
+
+  async function submitManualApproval() {
+    snapshotManualDraft();
+    const draft = gatherManualDraft();
+    if (!_manual.feedback?.ready) {
+      _manual.error = 'Run "Check with AI" first — submit unlocks when AI marks it ready.';
+      render();
+      return;
+    }
+    if (!draft.title) { _manual.error = 'Title required'; render(); return; }
+    if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
+    _manual.error = null;
+    try {
+      const r = await api('/api/tasks', { method: 'POST', body: {
+        title: draft.title, category: draft.category, fields: draft.fields, approverIds: draft.approverIds, source: 'web',
+      } });
+      resetNewPage();
+      state.scope = 'submitted';
+      await refreshAll();
+      nav('/task/' + r.task.id);
+    } catch (e) {
+      _manual.error = e.message;
+      render();
+    }
   }
 
   async function handleFileSelect(e) {
@@ -1482,31 +1993,34 @@
   function bindAIReviewControls() {
     const catEl = document.getElementById('newCategory');
     const fieldsEl = document.getElementById('categoryFields');
+    const descEl = document.getElementById('newDescription');
+    if (descEl && _ai.proposed?.fields?.description) descEl.value = _ai.proposed.fields.description;
+
     function repaintFields() {
       fieldsEl.innerHTML = renderCategoryFields(catEl.value);
-      // Pre-fill from AI proposal
       const f = _ai.proposed?.fields || {};
-      // Project field (all categories)
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el && v !== undefined && v !== null) el.value = v; };
       const projSel = document.getElementById('fProjectId');
       const projName = document.getElementById('fProjectName');
       if (projSel) {
         if (f.projectId) projSel.value = f.projectId;
-        else if (f.projectName) {
+        else if (f.projectName && projName) {
           projSel.value = '__other';
           projName.style.display = 'block';
           projName.value = f.projectName;
         }
       }
       if (catEl.value === 'payments') {
-        if (f.paymentType) document.getElementById('fPaymentType').value = f.paymentType;
-        if (f.amount != null) document.getElementById('fAmount').value = f.amount;
-        if (f.currency) document.getElementById('fCurrency').value = f.currency;
-        if (f.vendor) document.getElementById('fVendor').value = f.vendor;
-        if (f.purpose) document.getElementById('fPurpose').value = f.purpose;
-        if (f.dueDate) document.getElementById('fDueDate').value = f.dueDate;
+        setVal('fPaymentType', f.paymentType);
+        setVal('fAmount', f.amount);
+        setVal('fCurrency', f.currency);
+        setVal('fVendor', f.vendor);
+        setVal('fPurpose', f.purpose);
+        setVal('fCountry', f.country);
+        setVal('fDueDate', f.dueDate);
         bindPaymentTypeField();
       } else if (catEl.value === 'content') {
-        if (f.link) document.getElementById('fLink').value = f.link;
+        setVal('fLink', f.link);
       }
       bindProjectField();
     }
@@ -1522,7 +2036,8 @@
     };
     attachRowHandlers(document.getElementById('stepBuilder'));
 
-    document.getElementById('backToAI').onclick = () => {
+    const backChat = document.getElementById('backToAIChat');
+    if (backChat) backChat.onclick = () => {
       _ai.phase = 'ask';
       _ai.question = 'What would you like to change about the draft?';
       render();
@@ -1532,7 +2047,7 @@
       const title = document.getElementById('newTitle').value.trim();
       const category = catEl.value;
       const fields = gatherCategoryFields(category);
-      fields.description = _ai.proposed?.fields?.description || '';
+      fields.description = (document.getElementById('newDescription')?.value || _ai.proposed?.fields?.description || '').trim();
       const approverIds = Array.from(document.querySelectorAll('#stepBuilder .approver-pick')).map((s) => s.value).filter(Boolean);
       _ai.error = null;
       if (!title) { _ai.error = 'Title required'; render(); return; }
@@ -1546,8 +2061,8 @@
         if (_ai.files.length) await uploadFiles(_ai.files, r.task.id);
         if (_ai.draftId) await api('/api/task-drafts/' + _ai.draftId, { method: 'DELETE' }).catch(() => {});
         const newTaskId = r.task.id;
-        resetAI();
-        state.modalOpen = null;
+        resetNewPage();
+        state.scope = 'submitted';
         await refreshAll();
         nav('/task/' + newTaskId);
       } catch (e) {
