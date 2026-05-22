@@ -148,3 +148,81 @@ export async function draftApproval({ messages, images = [], requester, allUsers
 
   return parsed;
 }
+
+function buildValidatePrompt({ requester, allUsers, allProjects = [] }) {
+  const projectList = allProjects.map((p) => `- ${p.name}`).join('\n') || '(none configured yet)';
+  const teamList = allUsers
+    .filter((u) => u.id !== requester.id)
+    .map((u) => `- ${u.name} (${u.role})`)
+    .join('\n');
+
+  return `You review a manually filled approval request in approve.mira before submission.
+
+Today is ${new Date().toISOString().split('T')[0]}.
+Submitter: ${requester.name} (${requester.role}).
+
+BUSINESSES / PROJECTS (paid on behalf of):
+${projectList}
+
+TEAM (for approver suggestions only):
+${teamList || '(no other users yet)'}
+
+Categories: payments (needs amount, currency, paymentType, business/project), content (needs link or clear summary), other.
+
+Payment types: payment, refund, postpayment. Refunds need POP + invoice mentioned in suggestions.
+
+Your job:
+1. Check what is missing or weak in the submitted draft JSON.
+2. List REQUIRED fixes (must add before submit) — plain English labels, e.g. "Amount", "Business", "Approval path".
+3. List SUGGESTIONS (nice to have) — attachments, clearer purpose, approver order, etc.
+4. Ask ONE clarifying question only if something important is ambiguous; otherwise question is null.
+5. Set ready=true ONLY when every critical field for the category is present, the approval path has at least one approver, and nothing in "required" remains. If anything is missing or unclear, ready must be false.
+
+Respond with ONLY valid JSON:
+{
+  "ready": boolean,
+  "required": ["string", ...],
+  "suggestions": ["string", ...],
+  "question": "string or null",
+  "proposed": null
+}`;
+}
+
+export async function validateApproval({ draft, requester, allUsers, allProjects = [] }) {
+  const apiKey = cleanEnv(process.env.GROQ_API_KEY);
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+
+  const systemPrompt = buildValidatePrompt({ requester, allUsers, allProjects });
+  const userContent = `Review this draft:\n${JSON.stringify(draft, null, 2)}`;
+
+  const res = await fetch(`${GROQ_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: TEXT_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: 1200,
+      temperature: 0.2,
+      response_format: { type: 'json_object' },
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data?.error?.message || data?.error || JSON.stringify(data);
+    throw new Error(`Groq returned ${res.status}: ${detail}`);
+  }
+  const raw = data.choices?.[0]?.message?.content || '';
+  const clean = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch {
+    parsed = { ready: false, required: [], suggestions: [clean], question: null, proposed: null };
+  }
+  if (!Array.isArray(parsed.required)) parsed.required = [];
+  if (!Array.isArray(parsed.suggestions)) parsed.suggestions = [];
+  return parsed;
+}
