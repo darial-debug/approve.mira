@@ -506,11 +506,15 @@
     const text = await res.text();
     let data; try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
     if (res.status === 401) {
-      // Auth expired or invalid — kick to login so the user knows.
-      localStorage.removeItem(TOKEN_KEY);
-      state.user = null;
-      render();
-      throw new Error('Signed out — please sign in again');
+      // Auto-logout ONLY if we thought we were signed in (token expired etc.).
+      // If we're on the login screen, 401 means "wrong credentials" — just surface that.
+      if (state.user) {
+        localStorage.removeItem(TOKEN_KEY);
+        state.user = null;
+        render();
+        throw new Error('Signed out — please sign in again');
+      }
+      throw new Error(data.error || 'Not authorized');
     }
     if (!res.ok) throw new Error(data.error || res.statusText);
     return data;
