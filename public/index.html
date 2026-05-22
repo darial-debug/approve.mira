@@ -266,6 +266,21 @@
     .stat-tile.accent { background: var(--accent); }
     .stat-tile.dark { background: var(--dark-card); color: var(--bg-2); }
     .stat-tile.dark .label { color: #9aa0a6; }
+
+    /* ── Task filters (below top nav) ── */
+    .filters-bar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end;
+      margin: -8px 0 20px; padding: 14px 16px;
+      background: var(--bg-2); border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-card);
+    }
+    .filter-field { display: flex; flex-direction: column; gap: 4px; min-width: 120px; flex: 1 1 140px; max-width: 200px; }
+    .filter-field label { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+    .filter-field .select, .filter-field .input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+    .filter-field.filter-dates { flex: 2 1 280px; max-width: 320px; }
+    .filter-dates-row { display: flex; gap: 8px; }
+    .filter-dates-row .input { flex: 1; min-width: 0; }
+    .filters-clear { flex: 0 0 auto; align-self: flex-end; margin-left: auto; }
   </style>
 </head>
 <body>
@@ -286,10 +301,19 @@
     drafts: [],
     inbox: [],
     unread: 0,
+    pendingCount: 0,
     analytics: null,
     route: parseRoute(),
     scope: 'pending',
-    category: 'all',
+    filters: {
+      business: '',
+      departmentId: '',
+      submitterId: '',
+      country: '',
+      dateFrom: '',
+      dateTo: '',
+      paymentType: '',
+    },
     drawerOpen: false,
     modalOpen: null, // 'new' | 'admin-user' | etc
     flash: null,
@@ -406,14 +430,17 @@
   }
 
   async function refreshAll() {
-    const [tasks, users, departments, projects, drafts] = await Promise.all([
-      api('/api/tasks?scope=' + (state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'mine' : state.scope)).catch(() => ({ tasks: [] })),
+    const scopeParam = state.scope === 'all' && state.user?.role !== 'admin' && state.user?.role !== 'c_level' ? 'history' : state.scope;
+    const [tasks, pendingRes, users, departments, projects, drafts] = await Promise.all([
+      api('/api/tasks?scope=' + scopeParam).catch(() => ({ tasks: [] })),
+      api('/api/tasks?scope=pending').catch(() => ({ tasks: [] })),
       api('/api/users').catch(() => ({ users: [] })),
       api('/api/departments').catch(() => ({ departments: [] })),
       api('/api/projects').catch(() => ({ projects: [] })),
       api('/api/task-drafts').catch(() => ({ drafts: [] })),
     ]);
     state.tasks = tasks.tasks || [];
+    state.pendingCount = (pendingRes.tasks || []).length;
     state.users = users.users || [];
     state.departments = departments.departments || [];
     state.projects = projects.projects || [];
@@ -426,8 +453,50 @@
   // Helpers for project & finance
   function projectLabel(t) {
     const f = t.fields || {};
+    if (f.business) return f.business;
     if (f.projectId) return state.projects.find((p) => p.id === f.projectId)?.name || f.projectName || '—';
     return f.projectName || '';
+  }
+  function taskBusinessKey(t) {
+    const f = t.fields || {};
+    if (f.business) return f.business;
+    if (f.projectId) return 'id:' + f.projectId;
+    if (f.projectName) return 'name:' + f.projectName;
+    return '';
+  }
+  function submitterDepartmentId(t) {
+    const u = state.users.find((x) => x.id === t.submitterId);
+    return u?.departmentId || '';
+  }
+  function applyTaskFilters(list) {
+    const f = state.filters;
+    return list.filter((t) => {
+      if (f.business && taskBusinessKey(t) !== f.business) return false;
+      if (f.departmentId && submitterDepartmentId(t) !== f.departmentId) return false;
+      if (f.submitterId && t.submitterId !== f.submitterId) return false;
+      if (f.country && (t.fields?.country || '') !== f.country) return false;
+      if (f.paymentType) {
+        if (t.category !== 'payments') return false;
+        if ((t.fields?.paymentType || 'payment') !== f.paymentType) return false;
+      }
+      if (f.dateFrom) {
+        const d = new Date(t.createdAt);
+        if (d < new Date(f.dateFrom + 'T00:00:00')) return false;
+      }
+      if (f.dateTo) {
+        const d = new Date(t.createdAt);
+        if (d > new Date(f.dateTo + 'T23:59:59.999')) return false;
+      }
+      return true;
+    });
+  }
+  function filterOptionsFromTasks(list) {
+    const countries = new Set();
+    list.forEach((t) => { if (t.fields?.country) countries.add(t.fields.country); });
+    return { countries: [...countries].sort() };
+  }
+  function clearFilters() {
+    state.filters = { business: '', departmentId: '', submitterId: '', country: '', dateFrom: '', dateTo: '', paymentType: '' };
   }
   function isFinanceMember() {
     if (!state.user) return false;
@@ -506,32 +575,76 @@
   // ─── Topbar ───
   function renderTopbar() {
     const isAdmin = state.user.role === 'admin';
-    const isExec = isAdmin || state.user.role === 'c_level';
-    const pending = state.tasks.filter((t) => {
-      if (t.status !== 'under_review') return false;
-      const step = t.steps.find((s) => s.status === 'pending');
-      return step?.approverId === state.user.id;
-    }).length;
+    const pending = state.pendingCount;
     return `
       <div class="topbar">
         <div class="brand"><span class="dot"></span>approve.mira</div>
         <div class="pill-nav">
-          <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">My queue${pending ? `<span class="badge">${pending}</span>` : ''}</button>
+          <button class="pill ${state.scope === 'pending' ? 'active' : ''}" data-scope="pending">For me${pending ? `<span class="badge">${pending}</span>` : ''}</button>
           <button class="pill ${state.scope === 'submitted' ? 'active' : ''}" data-scope="submitted">Submitted</button>
-          <button class="pill ${state.scope === 'mine' ? 'active' : ''}" data-scope="mine">All mine</button>
-          ${isExec ? `<button class="pill ${state.scope === 'all' ? 'active' : ''}" data-scope="all">All tasks</button>` : ''}
+          <button class="pill ${state.scope === 'history' ? 'active' : ''}" data-scope="history">History</button>
           ${isAdmin ? `<button class="pill ${state.route.path === '/admin' ? 'active' : ''}" id="navAdmin">Admin</button>` : ''}
         </div>
         <div class="spacer"></div>
-        ${state.route.path.startsWith('/task/') || state.route.path === '/admin' ? `<button class="pill" id="backHome">← Home</button>` : `
-        <div class="pill-nav">
-          <button class="pill ${state.category === 'all' ? 'active' : ''}" data-cat="all">All</button>
-          <button class="pill ${state.category === 'payments' ? 'active' : ''}" data-cat="payments">Payments</button>
-          <button class="pill ${state.category === 'content' ? 'active' : ''}" data-cat="content">Content</button>
-          <button class="pill ${state.category === 'other' ? 'active' : ''}" data-cat="other">Other</button>
-        </div>`}
+        ${state.route.path.startsWith('/task/') || state.route.path === '/admin' ? `<button class="pill" id="backHome">← Home</button>` : ''}
         <button class="icon-btn" id="bellBtn" title="Notifications">${bellSvg()}${state.unread ? '<span class="badge-dot"></span>' : ''}</button>
         <div class="avatar" id="profileBtn" title="Profile">${esc((state.user.name || '?').slice(0,1).toUpperCase())}</div>
+      </div>`;
+  }
+
+  function renderFiltersBar(tasksForOptions) {
+    const f = state.filters;
+    const opts = filterOptionsFromTasks(tasksForOptions);
+    const businessOpts = state.projects.map((p) => ({ value: 'id:' + p.id, label: p.name }));
+    const submitters = [...new Set(tasksForOptions.map((t) => t.submitterId))].map((id) => state.users.find((u) => u.id === id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+    const hasFilters = Object.values(f).some(Boolean);
+    return `
+      <div class="filters-bar" id="filtersBar">
+        <div class="filter-field">
+          <label>Business</label>
+          <select class="select filter-ctrl" data-filter="business">
+            <option value="">All businesses</option>
+            ${businessOpts.map((o) => `<option value="${esc(o.value)}" ${f.business === o.value ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Department</label>
+          <select class="select filter-ctrl" data-filter="departmentId">
+            <option value="">All departments</option>
+            ${state.departments.map((d) => `<option value="${d.id}" ${f.departmentId === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>From</label>
+          <select class="select filter-ctrl" data-filter="submitterId">
+            <option value="">Anyone</option>
+            ${submitters.map((u) => `<option value="${u.id}" ${f.submitterId === u.id ? 'selected' : ''}>${esc(u.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Country</label>
+          <select class="select filter-ctrl" data-filter="country">
+            <option value="">All countries</option>
+            ${opts.countries.map((c) => `<option value="${esc(c)}" ${f.country === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="filter-field filter-dates">
+          <label>Created</label>
+          <div class="filter-dates-row">
+            <input class="input filter-ctrl" type="date" data-filter="dateFrom" value="${esc(f.dateFrom)}" title="From" />
+            <input class="input filter-ctrl" type="date" data-filter="dateTo" value="${esc(f.dateTo)}" title="To" />
+          </div>
+        </div>
+        <div class="filter-field">
+          <label>Payment type</label>
+          <select class="select filter-ctrl" data-filter="paymentType">
+            <option value="">All types</option>
+            <option value="payment" ${f.paymentType === 'payment' ? 'selected' : ''}>Payment</option>
+            <option value="postpayment" ${f.paymentType === 'postpayment' ? 'selected' : ''}>Postpayment</option>
+            <option value="refund" ${f.paymentType === 'refund' ? 'selected' : ''}>Refund</option>
+          </select>
+        </div>
+        ${hasFilters ? `<button class="btn btn-ghost filters-clear" id="clearFiltersBtn" type="button">Clear filters</button>` : ''}
       </div>`;
   }
   const bellSvg = () => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1z"/><path d="M10 21h4"/></svg>`;
@@ -544,46 +657,45 @@
 
   // ─── Home: drafts panel + task list ───
   function renderHome() {
-    const filteredTasks = state.tasks.filter((t) => state.category === 'all' || t.category === state.category);
+    const filteredTasks = applyTaskFilters(state.tasks);
     const drafts = state.drafts || [];
+    const scopeHint = { pending: 'Nothing needs your review right now.', submitted: 'No active tasks you created or are involved in.', history: 'No tasks in your history yet.' }[state.scope] || '';
 
-    let html = '';
+    let html = renderFiltersBar(state.tasks);
 
-    // Top: create CTA + drafts panel (only when no category filter and on default scope)
-    if (state.category === 'all') {
+    html += `
+      <div class="card card-dark" style="margin-bottom: 16px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap;">
+        <div>
+          <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Create a new approval</div>
+          <div style="color: #9aa0a6; font-size: 13px;">Describe it in your own words, dictate, or attach files. AI will draft it.</div>
+        </div>
+        <button class="btn btn-primary" id="newApprovalBtn" style="padding: 12px 22px;">+ New approval</button>
+      </div>`;
+
+    if (drafts.length) {
       html += `
-        <div class="card card-dark" style="margin-bottom: 16px; display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap;">
-          <div>
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 4px;">Create a new approval</div>
-            <div style="color: #9aa0a6; font-size: 13px;">Describe it in your own words, dictate, or attach files. AI will draft it.</div>
+        <div class="card" style="margin-bottom: 16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Drafts waiting to finish (${drafts.length})</h3>
           </div>
-          <button class="btn btn-primary" id="newApprovalBtn" style="padding: 12px 22px;">+ New approval</button>
-        </div>`;
-
-      if (drafts.length) {
-        html += `
-          <div class="card" style="margin-bottom: 16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-              <h3 style="margin:0;font-size:14px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Drafts waiting to finish (${drafts.length})</h3>
-            </div>
-            <div class="grid" style="gap: 8px;">
-              ${drafts.map((d) => `
-                <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
-                  <div style="flex:1;min-width:0;">
-                    <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
-                    <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}${d.slackMessage ? 'Slack' : 'Direct'} · ${fmtAgo(d.createdAt)}</div>
-                  </div>
-                  <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish →</button>
-                  <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
+          <div class="grid" style="gap: 8px;">
+            ${drafts.map((d) => `
+              <div class="card-row" style="background: var(--card-2); padding: 12px 14px; border-radius: 12px;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-weight:600;">${esc(d.title || 'Untitled draft')}</div>
+                  <div class="card-meta" style="margin-top:4px;">${d.senderName ? 'From ' + esc(d.senderName) + ' · ' : ''}${d.slackMessage ? 'Slack' : 'Direct'} · ${fmtAgo(d.createdAt)}</div>
                 </div>
-              `).join('')}
-            </div>
-          </div>`;
-      }
+                <button class="btn btn-primary" data-finish-draft="${esc(d.id)}">Finish →</button>
+                <button class="btn btn-danger" data-delete-draft="${esc(d.id)}" title="Delete draft">×</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
     }
 
     if (!filteredTasks.length) {
-      html += `<div class="empty"><h3>Nothing here yet</h3><p>${state.scope === 'pending' ? 'No approvals waiting on you. ' : ''}${state.category !== 'all' ? `No ${categoryLabel(state.category)} tasks. ` : ''}Click + to create one or send a message from Slack.</p></div>`;
+      const filterNote = Object.values(state.filters).some(Boolean) ? ' Try adjusting the filters.' : '';
+      html += `<div class="empty"><h3>Nothing here yet</h3><p>${scopeHint}${filterNote} Click + to create one or send a message from Slack.</p></div>`;
       return html;
     }
     html += `<div class="grid" style="gap: 12px;">${filteredTasks.map((t) => renderTaskCard(t)).join('')}</div>`;
@@ -764,15 +876,19 @@
     const f = t.fields || {};
     const rows = [];
     const projDisplay = projectLabel(t);
-    if (projDisplay) rows.push(['Project', esc(projDisplay)]);
     if (t.category === 'payments') {
       rows.push(['Payment type', `<span class="chip chip-dim">${paymentTypeLabel(f.paymentType || 'payment')}</span>`]);
       rows.push(['Amount', f.amount ? `${f.amount} ${esc(f.currency || '')}` : '—']);
+      if (projDisplay) rows.push(['Business', esc(projDisplay)]);
       rows.push(['Vendor', esc(f.vendor || '—')]);
+      if (f.country) rows.push(['Country', esc(f.country)]);
       rows.push(['Purpose', esc(f.purpose || '—')]);
       if (f.dueDate) rows.push(['Due', esc(f.dueDate)]);
     } else if (t.category === 'content') {
+      if (projDisplay) rows.push(['Business', esc(projDisplay)]);
       rows.push(['Link', f.link ? `<a href="${esc(f.link)}" target="_blank">${esc(f.link)}</a>` : '—']);
+    } else if (projDisplay) {
+      rows.push(['Business', esc(projDisplay)]);
     }
     rows.push(['Description', f.description ? `<div style="white-space: pre-wrap">${esc(f.description)}</div>` : '—']);
     if (t.slackMessage) rows.push(['Source', `Slack message from ${esc(t.slackMessage.channelName || t.slackMessage.channelId || 'DM')}`]);
@@ -967,7 +1083,7 @@
     const isOther = !selectedId && selectedName;
     return `
       <div class="field">
-        <label>Project (on whose behalf)</label>
+        <label>Business (paid on behalf of)</label>
         <select class="select" id="fProjectId">
           <option value="">— pick a project —</option>
           ${opts}
@@ -995,6 +1111,7 @@
         </select></div>
       </div>
       <div class="field"><label>Vendor / Recipient</label><input class="input" id="fVendor" /></div>
+      <div class="field"><label>Country</label><input class="input" id="fCountry" placeholder="e.g. UAE, UK" /></div>
       <div class="field"><label>Purpose</label><input class="input" id="fPurpose" /></div>
       ${projectFieldHTML('', '')}
       <div class="field"><label>Due date (optional)</label><input class="input" id="fDueDate" type="date" /></div>`;
@@ -1049,6 +1166,7 @@
         amount: document.getElementById('fAmount').value || null,
         currency: document.getElementById('fCurrency').value,
         vendor: document.getElementById('fVendor').value.trim(),
+        country: (document.getElementById('fCountry')?.value || '').trim() || null,
         purpose: document.getElementById('fPurpose').value.trim(),
         dueDate: document.getElementById('fDueDate').value || null,
       };
@@ -1223,7 +1341,7 @@
 
   // ─── Binders ───
   function bindMain() {
-    // Pills (scope + category)
+    // Scope tabs
     document.querySelectorAll('.pill[data-scope]').forEach((el) => {
       el.onclick = async () => {
         state.scope = el.dataset.scope;
@@ -1232,9 +1350,14 @@
         render();
       };
     });
-    document.querySelectorAll('.pill[data-cat]').forEach((el) => {
-      el.onclick = () => { state.category = el.dataset.cat; render(); };
+    document.querySelectorAll('.filter-ctrl').forEach((el) => {
+      const key = el.dataset.filter;
+      const apply = () => { state.filters[key] = el.value; render(); };
+      el.onchange = apply;
+      if (el.type === 'date') el.oninput = apply;
     });
+    const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+    if (clearFiltersBtn) clearFiltersBtn.onclick = () => { clearFilters(); render(); };
     const navAdmin = document.getElementById('navAdmin');
     if (navAdmin) navAdmin.onclick = () => nav('/admin');
     const backHome = document.getElementById('backHome');

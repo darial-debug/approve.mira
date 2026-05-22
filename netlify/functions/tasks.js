@@ -25,6 +25,7 @@ function normalizeFields(category, fields = {}) {
       throw json(400, { error: `paymentType must be one of ${PAYMENT_TYPES.join(', ')}` });
     }
     if (!f.paymentType) f.paymentType = 'payment'; // default
+    if (f.country) f.country = String(f.country).trim();
   }
   return f;
 }
@@ -68,7 +69,7 @@ async function dispatchPendingStep(task, users, submitter) {
 
 // ───────────────────────────── Routes ─────────────────────────────
 
-// GET    /api/tasks                  → list (filter by ?scope=mine|pending|submitted|all)
+// GET    /api/tasks                  → list (filter by ?scope=pending|submitted|history|all)
 // POST   /api/tasks                  → create
 // GET    /api/tasks/:id              → get one
 // PATCH  /api/tasks/:id              → edit fields / change path (auth-gated)
@@ -84,21 +85,30 @@ export default async (req) => {
     const me = await requireAuth(req);
 
     if (req.method === 'GET' && !id) {
-      const scope = url.searchParams.get('scope') || 'mine';
+      const scope = url.searchParams.get('scope') || 'pending';
       const tasks = await readData('tasks', []);
+      const audit = await readData('audit_log', []);
+      const involved = (t) => {
+        if (t.submitterId === me.id) return true;
+        if (t.steps.some((s) => s.approverId === me.id)) return true;
+        return audit.some((a) => a.taskId === t.id && a.userId === me.id);
+      };
+      const activeStatuses = new Set(['under_review', 'awaiting_transfer', 'declined']);
       let list = tasks;
-      if (scope === 'submitted') list = tasks.filter((t) => t.submitterId === me.id);
-      else if (scope === 'pending') {
+      if (scope === 'submitted') {
+        list = tasks.filter((t) => {
+          if (t.submitterId === me.id) return activeStatuses.has(t.status);
+          if (!activeStatuses.has(t.status)) return false;
+          return t.steps.some((s) => s.approverId === me.id);
+        });
+      } else if (scope === 'pending') {
         list = tasks.filter((t) => {
           if (t.status !== 'under_review') return false;
           const step = t.steps.find((s) => s.status === 'pending');
           return step && step.approverId === me.id;
         });
-      } else if (scope === 'mine') {
-        list = tasks.filter((t) => {
-          if (t.submitterId === me.id) return true;
-          return t.steps.some((s) => s.approverId === me.id);
-        });
+      } else if (scope === 'history' || scope === 'mine') {
+        list = tasks.filter(involved);
       } else if (scope === 'all') {
         if (me.role !== 'admin' && me.role !== 'c_level') {
           return json(403, { error: 'Admins/C-level only for scope=all' });
