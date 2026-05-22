@@ -1268,19 +1268,17 @@
 
   function renderNewManualPage() {
     const fb = _manual.feedback;
-    const canSubmit = !!fb?.ready;
     const d = _manual.draft || emptyManualDraft();
     const approvers = d.approverIds && d.approverIds.length ? d.approverIds : [''];
     return `
       <div class="new-page-header card-row">
         <div style="flex:1;">
           <h1>Fill in yourself</h1>
-          <p class="card-meta">Complete every field, run AI check, then submit when marked ready.</p>
+          <p class="card-meta">Fill the fields and submit. AI check is optional — use it for a sanity check.</p>
         </div>
         <button class="btn btn-ghost" id="backToModePick">← Change method</button>
       </div>
       <div class="card">
-        ${renderManualWorkflowSteps()}
         <div class="form-section-title">Request</div>
         <div class="field"><label>Title</label><input class="input" id="newTitle" placeholder="Short summary of the request" value="${esc(d.title || '')}" /></div>
         <div class="field"><label>Category</label>
@@ -1317,14 +1315,9 @@
 
         <div class="form-actions">
           <div class="actions-row">
-            <p class="actions-hint">${canSubmit
-              ? '<strong>Ready.</strong> Submit sends this into the approval flow.'
-              : fb
-                ? 'Fix <strong>Must add</strong> items above, then <strong>Check with AI</strong> again.'
-                : 'Fill in the form, then <strong>Check with AI</strong> before you can submit.'}</p>
-            <span class="submit-status ${canSubmit ? 'ready' : 'locked'}">${canSubmit ? '✓ Ready' : 'Submit locked'}</span>
+            <p class="actions-hint">Submit when ready. <strong>Check with AI</strong> is optional — runs a sanity check on what you filled in.</p>
             <button class="btn" id="checkWithAI" ${_manual.checking ? 'disabled' : ''}>Check with AI</button>
-            <button class="btn btn-primary" id="submitManual" ${canSubmit ? '' : 'disabled'}>Submit for approval</button>
+            <button class="btn btn-primary" id="submitManual">Submit for approval</button>
           </div>
         </div>
       </div>`;
@@ -1886,11 +1879,6 @@
   async function submitManualApproval() {
     snapshotManualDraft();
     const draft = gatherManualDraft();
-    if (!_manual.feedback?.ready) {
-      _manual.error = 'Run "Check with AI" first — submit unlocks when AI marks it ready.';
-      render();
-      return;
-    }
     if (!draft.title) { _manual.error = 'Title required'; render(); return; }
     if (!draft.approverIds.length) { _manual.error = 'Add at least one approver'; render(); return; }
     _manual.error = null;
